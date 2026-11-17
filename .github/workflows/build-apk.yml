@@ -20,7 +20,9 @@ jobs:
 
       - uses: subosito/flutter-action@v2
         with:
-          channel: stable
+          # Épinglé : la coque android/ (AGP 8.1.0) est générée sous 3.24.4 ;
+          # un Flutter plus récent la rejette à la configuration Gradle.
+          flutter-version: 3.24.4
           cache: true
 
       - name: Dépendances
@@ -51,7 +53,9 @@ jobs:
 
       - uses: subosito/flutter-action@v2
         with:
-          channel: stable
+          # Épinglé : la coque android/ (AGP 8.1.0) est générée sous 3.24.4 ;
+          # un Flutter plus récent la rejette à la configuration Gradle.
+          flutter-version: 3.24.4
           cache: true
 
       # Le dépôt stocke les fichiers binaires (wrapper Gradle, icônes) en
