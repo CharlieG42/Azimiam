@@ -13,9 +13,17 @@ coverage/
 *.iml
 .vscode/
 
-# Plateforme (régénérée par `flutter create`)
-# android/ et ios/ sont volontairement versionnés après la première génération.
+# Plateforme
+# android/ est versionné (coque générée par `flutter create`, puis adaptée :
+# config de signature release dans android/app/build.gradle).
+
+# Keystore et secrets de signature : jamais dans le dépôt.
+key.properties
+*.jks
+*.keystore
+*.p12
 
 # Divers
 *.log
 .DS_Store
+

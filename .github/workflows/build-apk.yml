@@ -23,11 +23,6 @@ jobs:
           channel: stable
           cache: true
 
-      # Le dépôt ne contient que lib/ + test/ + pubspec (méthode Atelier Sprites) :
-      # la coque Android est générée à la volée, sans écraser les fichiers existants.
-      - name: Générer la coque Android
-        run: flutter create --org wildzimut --project-name azimiam --platforms android .
-
       - name: Dépendances
         run: flutter pub get
 
@@ -38,9 +33,14 @@ jobs:
         run: flutter test
 
   apk:
-    name: APK release
+    name: APK signé + Release
     runs-on: ubuntu-latest
     needs: tests
+    permissions:
+      contents: write
+    env:
+      # Permet de savoir si les secrets de signature sont configurés.
+      AVEC_KEYSTORE: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -54,14 +54,52 @@ jobs:
           channel: stable
           cache: true
 
-      - name: Générer la coque Android
-        run: flutter create --org wildzimut --project-name azimiam --platforms android .
+      # Le dépôt stocke les fichiers binaires (wrapper Gradle, icônes) en
+      # Base64 (*.b64) : on les redécode en place avant le build.
+      - name: Décoder les binaires (.b64)
+        run: |
+          find . -name '*.b64' -print0 | while IFS= read -r -d '' f; do
+            base64 -d "$f" > "${f%.b64}" && rm "$f"
+          done
+          chmod +x android/gradlew
 
       - name: Dépendances
         run: flutter pub get
 
-      - name: Build APK
+      # Signature : uniquement si les secrets GitHub sont configurés.
+      # Sinon, build.gradle replie tout seul sur la clé debug.
+      - name: Configurer la signature (secrets)
+        if: env.AVEC_KEYSTORE == 'true'
+        run: |
+          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > android/app/azimiam-release.p12
+          cat > android/key.properties <<PROPS
+          storeFile=azimiam-release.p12
+          storePassword=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          keyAlias=${{ secrets.ANDROID_KEYSTORE_ALIAS }}
+          keyPassword=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          PROPS
+
+      - name: Build APK release
         run: flutter build apk --release
+
+      # Publication : crée la Release v<version pubspec> et y attache l'APK,
+      # ou met à jour la Release existante si le tag existe déjà.
+      - name: Publier la Release GitHub
+        if: github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION=$(grep '^version:' pubspec.yaml | sed 's/version: *//' | cut -d '+' -f 1)
+          TAG="v${VERSION}"
+          APK="build/app/outputs/flutter-apk/app-release.apk"
+          echo "Publication de $TAG"
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            gh release upload "$TAG" "$APK" --clobber
+          else
+            gh release create "$TAG" "$APK" \
+              --title "Azimiam $TAG" \
+              --notes "APK Android signé ($TAG). Voir le README pour l'installation et la configuration de la clé API Mistral."
+          fi
 
       - uses: actions/upload-artifact@v4
         with:

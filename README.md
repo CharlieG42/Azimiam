@@ -52,14 +52,16 @@ test/
   service_ia_test.dart        # 10 tests : parsing tolérant
   service_nutrition_test.dart # 14 tests : normalisation, matching, calculs
   mini_base_test.dart         # intégrité de la mini-base
+android/                       # coque Android versionnée (signature release configurée)
+.github/workflows/build-apk.yml  # CI : tests, APK signé, Release GitHub
 ```
 
 ## Démarrage
 
-Le dépôt contient uniquement `lib/`, `test/`, `pubspec` et la CI (même convention que l'Atelier Sprites) : la coque plateforme est générée par `flutter create`, sans rien écraser.
+Le dossier `android/` est versionné (coque générée une fois par `flutter create`, puis adaptée : config de signature release dans `android/app/build.gradle`). Les binaires (wrapper Gradle, icônes) sont stockés en Base64 (`.b64`) et décodés automatiquement par la CI ; pour un build local, décodez-les d'abord :
 
 ```bash
-flutter create --org wildzimut --project-name azimiam --platforms android .
+find android -name '*.b64' | while read f; do base64 -d "$f" > "${f%.b64}"; rm "$f"; done
 flutter pub get
 flutter run
 ```
@@ -68,12 +70,34 @@ Clé API : Réglages → « Couche IA (vision) » → coller une clé [console.m
 
 ## CI/CD
 
-`.github/workflows/build-apk.yml` : à chaque push sur `main` (et en PR) —
-1. `flutter create` (coque Android à la volée) + `pub get`
+`.github/workflows/build-apk.yml` : à chaque push sur `main` (et en PR), ou manuellement (onglet Actions → Run workflow) —
+1. Décodage des binaires `.b64`, `pub get`
 2. `flutter analyze` (infos non bloquantes) puis **`flutter test` bloquant**
-3. `flutter build apk --release` → artefact `azimiam-release-apk`
+3. `flutter build apk --release`, **signé** si les secrets sont configurés (repli sur clé debug sinon)
+4. **Publication d'une Release GitHub** `v<version>` (lue dans `pubspec.yaml`) avec l'APK attaché ; si le tag existe déjà, l'APK est re-téléversé (`--clobber`) + artefact `azimiam-release-apk`
 
 Le workflow a été validé sur un projet identique : analyse sans erreur, 24/24 tests, compilation complète OK.
+
+## Signature de l'APK
+
+L'APK release est signé via un keystore **jamais commité dans le dépôt** (`key.properties`, `*.p12`, `*.jks`, `*.keystore` sont ignorés). `android/app/build.gradle` lit `android/key.properties` s'il existe :
+
+```properties
+storeFile=azimiam-release.p12
+storePassword=<mot de passe du keystore>
+keyAlias=azimiam
+keyPassword=<mot de passe de la clé>
+```
+
+En CI, la signature s'active dès que ces secrets GitHub sont définis (Settings → Secrets and variables → Actions) :
+
+| Secret | Contenu |
+| --- | --- |
+| `ANDROID_KEYSTORE_BASE64` | keystore `.p12` encodé Base64 (`base64 -w0 azimiam-release.p12`) |
+| `ANDROID_KEYSTORE_PASSWORD` | mot de passe du keystore et de la clé |
+| `ANDROID_KEYSTORE_ALIAS` | alias de la clé (`azimiam`) |
+
+Sans ces secrets, le build reste signé avec la clé debug (installable en test, mais non publiable sur le Play Store).
 
 ## Roadmap
 
@@ -89,3 +113,4 @@ Le workflow a été validé sur un projet identique : analyse sans erreur, 24/24
 
 - Les valeurs de la mini-base sont **approximatives** (prototype) : l'import CIQUAL complet est prioritaire dans la roadmap.
 - Azimiam est un outil d'information, pas un dispositif médical.
+
