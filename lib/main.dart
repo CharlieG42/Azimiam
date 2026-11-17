@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import 'screens/accueil_ecran.dart';
 import 'state/journal.dart';
+import 'state/progression.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -24,8 +25,11 @@ class AzimiamApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF2E7D32)),
       ),
       supportedLocales: const [Locale('fr', 'FR')],
-      home: ChangeNotifierProvider(
-        create: (_) => Journal()..charger(),
+      home: MultiProvider(
+        providers: [
+          ChangeNotifierProvider(create: (_) => Journal()..charger()),
+          ChangeNotifierProvider(create: (_) => Progression()..charger()),
+        ],
         child: const AccueilEcran(),
       ),
     );

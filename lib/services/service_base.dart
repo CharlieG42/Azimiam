@@ -2,10 +2,11 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
 
+import '../models/progression.dart';
 import '../models/repas.dart';
 import '../models/valeurs.dart';
 
-/// Base de données locale (SQLite) : repas et lignes d'aliments.
+/// Base de données locale (SQLite) : repas, lignes d'aliments et pesées.
 class ServiceBase {
   static final ServiceBase instance = ServiceBase._();
   ServiceBase._();
@@ -18,31 +19,53 @@ class ServiceBase {
     final dossier = await getApplicationDocumentsDirectory();
     return openDatabase(
       p.join(dossier.path, 'azimiam.db'),
-      version: 1,
+      version: 2,
       onCreate: (db, version) async {
-        await db.execute('''
-          CREATE TABLE repas(
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            pris_le TEXT NOT NULL,
-            type TEXT NOT NULL,
-            photo TEXT
-          )
-        ''');
-        await db.execute('''
-          CREATE TABLE lignes(
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            repas_id INTEGER NOT NULL,
-            nom TEXT NOT NULL,
-            grammes REAL NOT NULL,
-            kcal100 REAL NOT NULL,
-            prot100 REAL NOT NULL,
-            gluc100 REAL NOT NULL,
-            lip100 REAL NOT NULL,
-            source TEXT NOT NULL DEFAULT 'manuel'
-          )
-        ''');
+        await _creerTables(db);
+      },
+      onUpgrade: (db, oldVersion, newVersion) async {
+        if (oldVersion < 2) {
+          await db.execute('''
+            CREATE TABLE IF NOT EXISTS poids(
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              jour TEXT NOT NULL UNIQUE,
+              kg REAL NOT NULL
+            )
+          ''');
+        }
       },
     );
+  }
+
+  Future<void> _creerTables(Database db) async {
+    await db.execute('''
+      CREATE TABLE repas(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        pris_le TEXT NOT NULL,
+        type TEXT NOT NULL,
+        photo TEXT
+      )
+    ''');
+    await db.execute('''
+      CREATE TABLE lignes(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        repas_id INTEGER NOT NULL,
+        nom TEXT NOT NULL,
+        grammes REAL NOT NULL,
+        kcal100 REAL NOT NULL,
+        prot100 REAL NOT NULL,
+        gluc100 REAL NOT NULL,
+        lip100 REAL NOT NULL,
+        source TEXT NOT NULL DEFAULT 'manuel'
+      )
+    ''');
+    await db.execute('''
+      CREATE TABLE poids(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        jour TEXT NOT NULL UNIQUE,
+        kg REAL NOT NULL
+      )
+    ''');
   }
 
   /// « 2026-11-17 »
@@ -124,5 +147,74 @@ class ServiceBase {
     final db = await base;
     await db.delete('lignes', where: 'repas_id = ?', whereArgs: [idRepas]);
     await db.delete('repas', where: 'id = ?', whereArgs: [idRepas]);
+  }
+
+  // ------------------------------------------------------------- Pesées
+
+  /// Enregistre (ou remplace) la pesée d'un jour. Renvoie l'id de la ligne.
+  Future<int> ajouterPesee(DateTime jour, double kg) async {
+    final db = await base;
+    return db.insert(
+      'poids',
+      {'jour': cleJour(jour), 'kg': kg},
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  /// Toutes les pesées, de la plus récente à la plus ancienne.
+  Future<List<Pesee>> historiquePesees() async {
+    final db = await base;
+    final lignes = await db.query('poids', orderBy: 'jour DESC, id DESC');
+    return lignes
+        .map((l) => Pesee(
+              id: l['id'] as int,
+              jour: DateTime.parse(l['jour'] as String),
+              kg: (l['kg'] as num).toDouble(),
+            ))
+        .toList();
+  }
+
+  /// Poids de la pesée la plus récente, ou null s'il n'y en a aucune.
+  Future<double?> dernierPoids() async {
+    final db = await base;
+    final lignes =
+        await db.query('poids', orderBy: 'jour DESC, id DESC', limit: 1);
+    if (lignes.isEmpty) return null;
+    return (lignes.first['kg'] as num).toDouble();
+  }
+
+  Future<void> supprimerPesee(int id) async {
+    final db = await base;
+    await db.delete('poids', where: 'id = ?', whereArgs: [id]);
+  }
+
+  // --------------------------------------------------- Totaux journaliers
+
+  /// Totaux nutritionnels par jour entre [depuis] et [jusqu] (inclus),
+  /// triés par jour croissant. Un jour sans repas n'apparaît pas.
+  Future<List<TotalJour>> totauxParJour(DateTime depuis, DateTime jusqu) async {
+    final db = await base;
+    final lignes = await db.rawQuery('''
+      SELECT substr(r.pris_le, 1, 10) AS jour,
+        SUM(l.kcal100 * l.grammes / 100) AS kcal,
+        SUM(l.prot100 * l.grammes / 100) AS prot,
+        SUM(l.gluc100 * l.grammes / 100) AS gluc,
+        SUM(l.lip100 * l.grammes / 100) AS lip
+      FROM repas r JOIN lignes l ON l.repas_id = r.id
+      WHERE substr(r.pris_le, 1, 10) BETWEEN ? AND ?
+      GROUP BY jour
+      ORDER BY jour
+    ''', [cleJour(depuis), cleJour(jusqu)]);
+    return lignes
+        .map((l) => TotalJour(
+              DateTime.parse(l['jour'] as String),
+              ValeursNutritionnelles(
+                kcal: (l['kcal'] as num?)?.toDouble() ?? 0,
+                proteines: (l['prot'] as num?)?.toDouble() ?? 0,
+                glucides: (l['gluc'] as num?)?.toDouble() ?? 0,
+                lipides: (l['lip'] as num?)?.toDouble() ?? 0,
+              ),
+            ))
+        .toList();
   }
 }
