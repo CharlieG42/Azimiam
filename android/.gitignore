@@ -1,0 +1,12 @@
+*.iml
+.gradle/
+/local.properties
+/captures/
+GeneratedPluginRegistrant.java
+
+# Ne partagez JAMAIS votre keystore ou vos identifiants de signature.
+# https://flutter.dev/to/reference-keystore
+key.properties
+**/*.keystore
+**/*.jks
+**/*.p12
