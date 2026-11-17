@@ -80,25 +80,29 @@ jobs:
           PROPS
 
       - name: Build APK release
-        run: flutter build apk --release
+        run: flutter build apk --release --build-number "$GITHUB_RUN_NUMBER"
 
       # Publication : crée la Release v<version pubspec> et y attache l'APK,
       # ou met à jour la Release existante si le tag existe déjà.
+      # Le nom de l'APK termine la version par le numéro de build.
       - name: Publier la Release GitHub
         if: github.event_name != 'pull_request'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           VERSION=$(grep '^version:' pubspec.yaml | sed 's/version: *//' | cut -d '+' -f 1)
+          NUM="$GITHUB_RUN_NUMBER"
           TAG="v${VERSION}"
           APK="build/app/outputs/flutter-apk/app-release.apk"
-          echo "Publication de $TAG"
+          APK_FINAL="azimiam-v${VERSION}-${NUM}.apk"
+          cp "$APK" "$APK_FINAL"
+          echo "Publication de $TAG -> $APK_FINAL"
           if gh release view "$TAG" > /dev/null 2>&1; then
-            gh release upload "$TAG" "$APK" --clobber
+            gh release upload "$TAG" "$APK_FINAL" --clobber
           else
-            gh release create "$TAG" "$APK" \
+            gh release create "$TAG" "$APK_FINAL" \
               --title "Azimiam $TAG" \
-              --notes "APK Android signé ($TAG). Voir le README pour l'installation et la configuration de la clé API Mistral."
+              --notes "APK Android signé ($TAG, build n°${NUM}). Voir le README pour l'installation et la configuration de la clé API Mistral."
           fi
 
       - uses: actions/upload-artifact@v4

@@ -73,8 +73,8 @@ Clé API : Réglages → « Couche IA (vision) » → coller une clé [console.m
 `.github/workflows/build-apk.yml` : à chaque push sur `main` (et en PR), ou manuellement (onglet Actions → Run workflow) —
 1. Décodage des binaires `.b64`, `pub get`
 2. `flutter analyze` (infos non bloquantes) puis **`flutter test` bloquant**
-3. `flutter build apk --release`, **signé** si les secrets sont configurés (repli sur clé debug sinon)
-4. **Publication d'une Release GitHub** `v<version>` (lue dans `pubspec.yaml`) avec l'APK attaché ; si le tag existe déjà, l'APK est re-téléversé (`--clobber`) + artefact `azimiam-release-apk`
+3. `flutter build apk --release`, **signé** si les secrets sont configurés (repli sur clé debug sinon) ; `versionCode` = numéro de build
+4. **Publication d'une Release GitHub** `v<version>` (lue dans `pubspec.yaml`) avec l'APK **`azimiam-v<version>-<n° de build>.apk`** attaché ; si le tag existe déjà, l'APK est re-téléversé (`--clobber`) + artefact `azimiam-release-apk`
 
 Le workflow a été validé sur un projet identique : analyse sans erreur, 24/24 tests, compilation complète OK.
 
