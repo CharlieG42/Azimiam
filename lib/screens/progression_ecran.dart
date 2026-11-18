@@ -1,3 +1,5 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -128,11 +130,11 @@ class _CarteImc extends StatelessWidget {
       final depart = progression.pesees.last.kg; // la plus ancienne
       if ((depart - cible).abs() > 0.01) {
         fraction =
-            ((depart - poids!) / (depart - cible)).clamp(0.0, 1.0).toDouble();
+            ((depart - poids) / (depart - cible)).clamp(0.0, 1.0).toDouble();
       }
       if (profil.complet) {
-        semaines = ServiceImc.semainesEstimees(profil, poids!);
-        auto = ServiceImc.objectifsAuto(profil, poids!);
+        semaines = ServiceImc.semainesEstimees(profil, poids);
+        auto = ServiceImc.objectifsAuto(profil, poids);
       }
     }
 
@@ -205,7 +207,7 @@ class _CarteImc extends StatelessWidget {
               Builder(
                 builder: (context) {
                   final cible = profil.poidsCibleKg!;
-                  final restant = (cible - poids!).abs();
+                  final restant = (cible - poids).abs();
                   final sens = profil.objectif == 'perte' ? 'à perdre' : 'à prendre';
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -463,12 +465,12 @@ class _CourbePainter extends CustomPainter {
     final style = TextStyle(fontSize: 10, color: Colors.grey.shade600);
     final haut = TextPainter(
       text: TextSpan(text: '${max.toStringAsFixed(1)} kg', style: style),
-      textDirection: TextDirection.ltr,
+      textDirection: ui.TextDirection.ltr,
     )..layout();
     haut.paint(canvas, Offset(marge, 0));
     final bas = TextPainter(
       text: TextSpan(text: '${min.toStringAsFixed(1)} kg', style: style),
-      textDirection: TextDirection.ltr,
+      textDirection: ui.TextDirection.ltr,
     )..layout();
     bas.paint(canvas, Offset(marge, size.height - bas.height));
   }
