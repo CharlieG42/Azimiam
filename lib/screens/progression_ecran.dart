@@ -20,7 +20,16 @@ class ProgressionEcran extends StatelessWidget {
     final progression = context.watch<Progression>();
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Progression & IMC')),
+      appBar: AppBar(
+        title: const Text('Progression & IMC'),
+        actions: [
+          IconButton(
+            tooltip: 'Exporter les données (CSV)',
+            icon: const Icon(Icons.file_download_outlined),
+            onPressed: () => _exporterCsv(context),
+          ),
+        ],
+      ),
       body: progression.enChargement
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
@@ -91,6 +100,33 @@ class ProgressionEcran extends StatelessWidget {
     if (kg != null && kg > 0) {
       await progression.ajouterPesee(kg, DateTime.now());
     }
+  }
+}
+
+/// Exporte journal + pesées en CSV (dossier Téléchargements) et affiche
+/// le chemin du fichier créé.
+Future<void> _exporterCsv(BuildContext context) async {
+  try {
+    final chemin = await ServiceBase.instance.exporterCsv();
+    if (!context.mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Export CSV'),
+        content: Text('Fichier enregistré :\n$chemin'),
+        actions: [
+          FilledButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  } catch (e) {
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Export impossible : $e')),
+    );
   }
 }
 
@@ -345,11 +381,19 @@ class _CartePoids extends StatelessWidget {
   }
 }
 
-/// Carte apports : moyennes 7/30 jours + graphique des 14 derniers jours.
-class _CarteApports extends StatelessWidget {
+/// Carte apports : moyennes 7/30/90 jours + graphique des derniers jours
+/// (7/14/30/90 au choix).
+class _CarteApports extends StatefulWidget {
   final Progression progression;
 
   const _CarteApports({required this.progression});
+
+  @override
+  State<_CarteApports> createState() => _CarteApportsState();
+}
+
+class _CarteApportsState extends State<_CarteApports> {
+  int _jours = 14;
 
   static double _moyenne(List<TotalJour> totaux, int jours) {
     final maintenant = DateTime.now();
@@ -363,9 +407,11 @@ class _CarteApports extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final progression = widget.progression;
     final objectif = progression.reglages.objectifKcal;
     final moy7 = _moyenne(progression.totaux, 7);
     final moy30 = _moyenne(progression.totaux, 30);
+    final moy90 = _moyenne(progression.totaux, 90);
 
     return Card(
       child: Padding(
@@ -373,20 +419,41 @@ class _CarteApports extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Apports journaliers',
-                style: Theme.of(context).textTheme.titleMedium),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('Apports journaliers',
+                    style: Theme.of(context).textTheme.titleMedium),
+                Wrap(
+                  spacing: 4,
+                  children: [7, 14, 30, 90]
+                      .map((j) => ChoiceChip(
+                            label: Text('${j}j'),
+                            selected: _jours == j,
+                            onSelected: (_) => setState(() => _jours = j),
+                          ))
+                      .toList(),
+                ),
+              ],
+            ),
             const SizedBox(height: 8),
             Row(
               children: [
                 Expanded(
                   child: Text(
-                    'Moyenne 7 j\n${moy7.round()} kcal',
+                    'Moy. 7 j\n${moy7.round()} kcal',
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                 ),
                 Expanded(
                   child: Text(
-                    'Moyenne 30 j\n${moy30.round()} kcal',
+                    'Moy. 30 j\n${moy30.round()} kcal',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+                Expanded(
+                  child: Text(
+                    'Moy. 90 j\n${moy90.round()} kcal',
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                 ),
@@ -407,11 +474,12 @@ class _CarteApports extends StatelessWidget {
               child: _GraphiqueBarres(
                 totaux: progression.totaux,
                 objectif: objectif,
+                jours: _jours,
               ),
             ),
             const SizedBox(height: 4),
             Text(
-              'Calories des 14 derniers jours (barres) vs objectif (ligne rouge).',
+              'Calories des $_jours derniers jours (barres) vs objectif (ligne rouge).',
               style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
             ),
           ],
@@ -483,8 +551,13 @@ class _CourbePainter extends CustomPainter {
 class _GraphiqueBarres extends StatelessWidget {
   final List<TotalJour> totaux;
   final double objectif;
+  final int jours;
 
-  const _GraphiqueBarres({required this.totaux, required this.objectif});
+  const _GraphiqueBarres({
+    required this.totaux,
+    required this.objectif,
+    this.jours = 14,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -494,9 +567,11 @@ class _GraphiqueBarres extends StatelessWidget {
       for (final t in totaux) ServiceBase.cleJour(t.jour): t.valeurs.kcal
     };
     final valeurs = List.generate(
-      14,
+      jours,
       (i) =>
-          parJour[ServiceBase.cleJour(aujourdhui.subtract(Duration(days: 13 - i)))] ?? 0,
+          parJour[ServiceBase.cleJour(
+                  aujourdhui.subtract(Duration(days: jours - 1 - i)))] ??
+              0,
     );
     return CustomPaint(
       painter: _BarresPainter(valeurs, objectif),

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
+import '../models/favori.dart';
 import '../models/repas.dart';
 import '../models/valeurs.dart';
 import '../services/service_reglages.dart';
@@ -228,6 +229,64 @@ class _Contenu extends StatelessWidget {
               ),
             ],
           ),
+          // ----- Repas fréquents (favoris) -----
+          if (journal.favoris.isNotEmpty) ...[
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Repas fréquents',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 4),
+                    for (final favori in journal.favoris.take(5))
+                      Dismissible(
+                        key: ValueKey('favori-${favori.id}'),
+                        direction: DismissDirection.endToStart,
+                        onDismissed: (_) =>
+                            journal.supprimerFavori(favori.id!),
+                        background: Container(
+                          alignment: Alignment.centerRight,
+                          padding: const EdgeInsets.only(right: 20),
+                          decoration: BoxDecoration(
+                            color: Colors.red.shade400,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child:
+                              const Icon(Icons.delete, color: Colors.white),
+                        ),
+                        child: ListTile(
+                          dense: true,
+                          contentPadding: EdgeInsets.zero,
+                          leading:
+                              const Icon(Icons.star, color: Colors.amber),
+                          title: Text(favori.nom),
+                          subtitle: Text(
+                            '${favori.type} · ${favori.total.kcal.round()} kcal',
+                          ),
+                          trailing: const Icon(Icons.playlist_add),
+                          onTap: () async {
+                            await journal.recreerFavori(favori);
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                      '« ${favori.nom} » recréé aujourd'hui.'),
+                                ),
+                              );
+                            }
+                          },
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
           if (journal.erreur != null)
             Card(
               color: Colors.orange.shade50,
@@ -268,7 +327,10 @@ class _Contenu extends StatelessWidget {
                 padding: const EdgeInsets.only(bottom: 8),
                 child: _CarteRepas(
                   repas: repas,
+                  estFavori: journal.estFavori(repas),
                   onSupprimer: () => journal.supprimer(repas.id!),
+                  onBasculerFavori: () =>
+                      _basculerFavori(context, journal, repas),
                 ),
               ),
             ),
@@ -409,9 +471,16 @@ class _Macro extends StatelessWidget {
 
 class _CarteRepas extends StatelessWidget {
   final Repas repas;
+  final bool estFavori;
   final VoidCallback onSupprimer;
+  final VoidCallback onBasculerFavori;
 
-  const _CarteRepas({required this.repas, required this.onSupprimer});
+  const _CarteRepas({
+    required this.repas,
+    required this.estFavori,
+    required this.onSupprimer,
+    required this.onBasculerFavori,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -444,9 +513,24 @@ class _CarteRepas extends StatelessWidget {
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
           ),
-          trailing: Text(
-            '${repas.total.kcal.round()} kcal',
-            style: const TextStyle(fontWeight: FontWeight.bold),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                '${repas.total.kcal.round()} kcal',
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              IconButton(
+                tooltip: estFavori
+                    ? 'Retirer des favoris'
+                    : 'Ajouter aux favoris',
+                icon: Icon(
+                  estFavori ? Icons.star : Icons.star_border,
+                  color: estFavori ? Colors.amber.shade700 : Colors.grey,
+                ),
+                onPressed: onBasculerFavori,
+              ),
+            ],
           ),
         ),
       ),
@@ -475,5 +559,52 @@ class _CarteRepas extends StatelessWidget {
         errorBuilder: (_, __, ___) => avatar,
       ),
     );
+  }
+}
+
+/// Bascule le favori d'un repas : retire si déjà favori, sinon demande un
+/// nom et enregistre le snapshot des lignes.
+Future<void> _basculerFavori(
+    BuildContext context, Journal journal, Repas repas) async {
+  if (journal.estFavori(repas)) {
+    await journal.retirerFavori(repas);
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Retiré des favoris.')),
+      );
+    }
+    return;
+  }
+  final controleur = TextEditingController(text: repas.type);
+  final nom = await showDialog<String>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('Ajouter aux favoris'),
+      content: TextField(
+        controller: controleur,
+        autofocus: true,
+        decoration: const InputDecoration(labelText: 'Nom du favori'),
+        onSubmitted: (v) => Navigator.pop(context, v.trim()),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Annuler'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(context, controleur.text.trim()),
+          child: const Text('Ajouter'),
+        ),
+      ],
+    ),
+  );
+  controleur.dispose();
+  if (nom != null && nom.isNotEmpty) {
+    await journal.ajouterFavori(repas, nom);
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('« $nom » ajouté aux favoris.')),
+      );
+    }
   }
 }
