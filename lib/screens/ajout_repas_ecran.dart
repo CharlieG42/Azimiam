@@ -240,6 +240,7 @@ class _AjoutRepasEcranState extends State<AjoutRepasEcran> {
       context: context,
       builder: (context) {
         var suggestions = <Aliment>[];
+        String? erreur;
         return StatefulBuilder(
           builder: (context, majEtat) => AlertDialog(
             title: const Text('Ajouter un aliment'),
@@ -251,10 +252,14 @@ class _AjoutRepasEcranState extends State<AjoutRepasEcran> {
                   TextField(
                     controller: controleur,
                     autofocus: true,
-                    decoration: const InputDecoration(
-                        hintText: 'Ex. : poulet, riz, pomme…'),
-                    onChanged: (valeur) => majEtat(() =>
-                        suggestions = ServiceNutrition.suggestions(valeur)),
+                    decoration: InputDecoration(
+                      hintText: 'Ex. : poulet, riz, pomme…',
+                      errorText: erreur,
+                    ),
+                    onChanged: (valeur) => majEtat(() {
+                      erreur = null;
+                      suggestions = ServiceNutrition.suggestions(valeur);
+                    }),
                   ),
                   const SizedBox(height: 12),
                   if (suggestions.isEmpty)
@@ -288,11 +293,17 @@ class _AjoutRepasEcranState extends State<AjoutRepasEcran> {
                 child: const Text('Annuler'),
               ),
               FilledButton(
-                // Désactivé si le champ est vide : évite de fermer le
-                // dialogue sans rien ajouter.
-                onPressed: controleur.text.trim().isEmpty
-                    ? null
-                    : () => Navigator.pop(context, controleur.text.trim()),
+                // Toujours actif : si le champ est vide, on affiche une
+                // erreur dans le dialogue au lieu de fermer sans rien faire.
+                onPressed: () {
+                  final texte = controleur.text.trim();
+                  if (texte.isEmpty) {
+                    majEtat(() =>
+                        erreur = 'Saisissez d’abord un nom d’aliment.');
+                    return;
+                  }
+                  Navigator.pop(context, texte);
+                },
                 child: const Text('Saisie libre'),
               ),
             ],
