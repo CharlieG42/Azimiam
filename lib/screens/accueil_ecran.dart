@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
-import '../models/favori.dart';
 import '../models/repas.dart';
 import '../models/valeurs.dart';
 import '../services/service_reglages.dart';
