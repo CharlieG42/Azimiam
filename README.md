@@ -24,33 +24,45 @@ flowchart LR
 - 🥗 Mini-base locale de ~110 aliments courants avec alias de recherche (accents, synonymes)
 - ➕ Ajout manuel avec suggestions de la base, ou saisie libre à compléter
 - 📊 Journal quotidien : total vs objectifs (calories, protéines, glucides, lipides), navigation entre les jours
-- 💾 SQLite local, réglages persistés (clé API, modèle, objectifs)
+- 💾 SQLite local, réglages persistés (clé API, modèle, objectifs, profil)
+- ⚖️ **Profil & IMC** : taille, âge, sexe, activité et objectif de poids (maintien / perte / prise avec poids cible) ; calcul automatique des objectifs caloriques (métabolisme de base Mifflin-St Jeor × facteur d'activité, ajusté à l'objectif avec planchers de sécurité 1 200 / 1 500 kcal) et du poids idéal (formule de Devine)
+- 📈 **Suivi des progressions** : pesées historisées (une par jour, SQLite), courbe de poids, catégorie IMC (OMS), progression vers le poids cible (% parcouru, durée estimée à ~7 700 kcal/kg), moyennes d'apports 7/30 jours et graphique des calories des 14 derniers jours vs objectif (dessiné nativement, sans dépendance graphique)
+- 📅 **Plan nutritionnel** : journée type générée depuis la mini-base locale et mise à l'échelle des objectifs (répartition 25/35/10/30 %, variantes qui tournent jour par jour), consultable à n'importe quelle date et ajoutable au journal en un geste
 - 🖼️ Photo du repas archivée dans l'app et affichée dans le journal
 
 ## Structure
 
 ```
 lib/
-  main.dart                    # point d'entrée, thème, locale fr
+  main.dart                    # point d'entrée, thème, locale fr, providers
   models/
     valeurs.dart              # ValeursNutritionnelles (pour 100 g ou totaux)
     repas.dart                # LigneRepas, Repas, typesRepas
+    profil.dart               # Profil : taille, âge, sexe, activité, objectif
+    progression.dart          # Pesee, TotalJour
   data/
     mini_base.dart            # ~110 aliments, valeurs / 100 g (approx. CIQUAL)
   services/
     service_ia.dart           # appel vision + parseur JSON tolérant (testé)
     service_nutrition.dart    # normalisation, matching, suggestions (testé)
-    service_base.dart         # SQLite : repas + lignes
-    service_reglages.dart     # SharedPreferences : clé API, objectifs
+    service_imc.dart          # IMC (OMS), Mifflin-St Jeor, objectifs auto (testé)
+    service_plan.dart         # plan nutritionnel du jour (testé)
+    service_base.dart         # SQLite : repas, lignes, pesées, totaux/jour
+    service_reglages.dart     # SharedPreferences : clé API, objectifs, profil
   state/
     journal.dart              # ChangeNotifier : journée, totaux, erreurs
+    progression.dart          # ChangeNotifier : pesées, totaux 30 j, réglages
   screens/
-    accueil_ecran.dart        # résumé + liste des repas + navigation jours
+    accueil_ecran.dart        # résumé + liste des repas + navigation jours + menu
     ajout_repas_ecran.dart    # photo → IA → correction → enregistrement
-    reglages_ecran.dart       # clé API, modèle, objectifs
+    progression_ecran.dart    # IMC, courbe de poids, apports 7/14/30 jours
+    plan_ecran.dart           # plan nutritionnel du jour, ajoutable au journal
+    reglages_ecran.dart       # clé API, modèle, profil, objectifs (+ calcul auto)
 test/
   service_ia_test.dart        # 10 tests : parsing tolérant
   service_nutrition_test.dart # 14 tests : normalisation, matching, calculs
+  service_imc_test.dart       # IMC, métabolisme, objectifs auto, durées
+  service_plan_test.dart      # gabarits, rotation, ajustement aux objectifs
   mini_base_test.dart         # intégrité de la mini-base
 android/                       # coque Android versionnée (signature release configurée)
 .github/workflows/build-apk.yml  # CI : tests, APK signé, Release GitHub
@@ -103,11 +115,11 @@ Sans ces secrets, le build reste signé avec la clé debug (installable en test,
 
 - 📦 **Import CIQUAL complet** (open data ANSES, ~2 750 aliments + micronutriments) en remplacement de la mini-base
 - 🏷️ **Scan de code-barres** via Open Food Facts (produits industriels)
-- 📈 Historique hebdomadaire / mensuel avec graphiques (`fl_chart`)
+- 📈 Historique hebdomadaire / mensuel plus poussé (graphique 14 jours et courbe de poids déjà dessinés nativement)
 - ⭐ Favoris et repas récurrents (« recopier le déjeuner d'hier »)
 - 🧠 Apprentissage des corrections de l'utilisateur (calibrer les quantités par aliment sur l'historique)
 - 📴 Mode hors-ligne : modèle embarqué (TFLite / ML Kit) en repli sans réseau
-- ⚖️ Poids/taille/objectifs avec calcul d'objectifs automatiques
+- ⚖️ Poids/taille/objectifs avec calcul d'objectifs automatiques ✅ (fait : profil + IMC + objectifs auto)
 
 ## Avertissements
 

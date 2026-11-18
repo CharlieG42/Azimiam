@@ -9,6 +9,8 @@ import '../models/valeurs.dart';
 import '../services/service_reglages.dart';
 import '../state/journal.dart';
 import 'ajout_repas_ecran.dart';
+import 'plan_ecran.dart';
+import 'progression_ecran.dart';
 import 'reglages_ecran.dart';
 
 /// Écran principal : résumé de la journée + liste des repas.
@@ -21,6 +23,68 @@ class AccueilEcran extends StatelessWidget {
     final titreJour = DateFormat('EEEE d MMMM', 'fr_FR').format(journal.jour);
 
     return Scaffold(
+      drawer: Drawer(
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: [
+            DrawerHeader(
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.primary,
+              ),
+              child: const Align(
+                alignment: Alignment.bottomLeft,
+                child: Text(
+                  'Azimiam',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.restaurant_menu_outlined),
+              title: const Text('Journal'),
+              onTap: () => Navigator.pop(context),
+            ),
+            ListTile(
+              leading: const Icon(Icons.insights_outlined),
+              title: const Text('Progression & IMC'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const ProgressionEcran()),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.calendar_month_outlined),
+              title: const Text('Plan nutritionnel'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const PlanEcran()),
+                );
+              },
+            ),
+            const Divider(),
+            ListTile(
+              leading: const Icon(Icons.settings_outlined),
+              title: const Text('Réglages'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const ReglagesEcran()),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
       appBar: AppBar(
         title: Text(
           '${titreJour[0].toUpperCase()}${titreJour.substring(1)}',
