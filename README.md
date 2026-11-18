@@ -27,7 +27,7 @@ flowchart LR
 - 💾 SQLite local, réglages persistés (clé API, modèle, objectifs, profil)
 - ⚖️ **Profil & IMC** : taille, âge, sexe, activité et objectif de poids (maintien / perte / prise avec poids cible) ; calcul automatique des objectifs caloriques (métabolisme de base Mifflin-St Jeor × facteur d'activité, ajusté à l'objectif avec planchers de sécurité 1 200 / 1 500 kcal) et du poids idéal (formule de Devine)
 - 📈 **Suivi des progressions** : pesées historisées (une par jour, SQLite), courbe de poids, catégorie IMC (OMS), progression vers le poids cible (% parcouru, durée estimée à ~7 700 kcal/kg), moyennes d'apports 7/30 jours et graphique des calories des 14 derniers jours vs objectif (dessiné nativement, sans dépendance graphique)
-- 📅 **Plan nutritionnel** : journée type générée depuis la mini-base locale et mise à l'échelle des objectifs (répartition 25/35/10/30 %, variantes qui tournent jour par jour), consultable à n'importe quelle date et ajoutable au journal en un geste
+- 📅 **Plan nutritionnel** : fixe les **objectifs globaux** de la journée (kcal, protéines, glucides, lipides) et affiche la progression réelle du jour (réalisé / objectif / reste) — **sans imposer de plats précis**
 - 🖼️ Photo du repas archivée dans l'app et affichée dans le journal
 
 ## Structure
@@ -46,7 +46,6 @@ lib/
     service_ia.dart           # appel vision + parseur JSON tolérant (testé)
     service_nutrition.dart    # normalisation, matching, suggestions (testé)
     service_imc.dart          # IMC (OMS), Mifflin-St Jeor, objectifs auto (testé)
-    service_plan.dart         # plan nutritionnel du jour (testé)
     service_base.dart         # SQLite : repas, lignes, pesées, totaux/jour
     service_reglages.dart     # SharedPreferences : clé API, objectifs, profil
   state/
@@ -56,13 +55,12 @@ lib/
     accueil_ecran.dart        # résumé + liste des repas + navigation jours + menu
     ajout_repas_ecran.dart    # photo → IA → correction → enregistrement
     progression_ecran.dart    # IMC, courbe de poids, apports 7/14/30 jours
-    plan_ecran.dart           # plan nutritionnel du jour, ajoutable au journal
+    plan_ecran.dart           # objectifs globaux du jour vs réalisé (sans plats imposés)
     reglages_ecran.dart       # clé API, modèle, profil, objectifs (+ calcul auto)
 test/
   service_ia_test.dart        # 10 tests : parsing tolérant
   service_nutrition_test.dart # 14 tests : normalisation, matching, calculs
   service_imc_test.dart       # IMC, métabolisme, objectifs auto, durées
-  service_plan_test.dart      # gabarits, rotation, ajustement aux objectifs
   mini_base_test.dart         # intégrité de la mini-base
 android/                       # coque Android versionnée (signature release configurée)
 .github/workflows/build-apk.yml  # CI : tests, APK signé, Release GitHub
