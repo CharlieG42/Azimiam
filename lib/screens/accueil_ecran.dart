@@ -274,7 +274,7 @@ class _Contenu extends StatelessWidget {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
                                   content: Text(
-                                      '« ${favori.nom} » recréé aujourd'hui.'),
+                                      "« ${favori.nom} » recrée aujourd'hui."),
                                 ),
                               );
                             }
