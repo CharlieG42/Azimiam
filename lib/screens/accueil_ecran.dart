@@ -20,7 +20,8 @@ class AccueilEcran extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final journal = context.watch<Journal>();
-    final titreJour = DateFormat('EEEE d MMMM', 'fr_FR').format(journal.jour);
+    // Format court (« mar. 18 nov. ») pour ne pas couper la date dans la barre.
+    final titreJour = DateFormat('EEE d MMM', 'fr_FR').format(journal.jour);
 
     return Scaffold(
       drawer: Drawer(
@@ -88,6 +89,8 @@ class AccueilEcran extends StatelessWidget {
       appBar: AppBar(
         title: Text(
           '${titreJour[0].toUpperCase()}${titreJour.substring(1)}',
+          style: const TextStyle(fontSize: 17),
+          overflow: TextOverflow.ellipsis,
         ),
         actions: [
           IconButton(
@@ -97,23 +100,77 @@ class AccueilEcran extends StatelessWidget {
                 .changerJour(journal.jour.subtract(const Duration(days: 1))),
           ),
           IconButton(
-            tooltip: 'Aujourd\'hui',
-            icon: const Icon(Icons.today_outlined),
-            onPressed: () => journal.changerJour(DateTime.now()),
-          ),
-          IconButton(
             tooltip: 'Jour suivant',
             icon: const Icon(Icons.chevron_right),
             onPressed: () =>
                 journal.changerJour(journal.jour.add(const Duration(days: 1))),
           ),
-          IconButton(
-            tooltip: 'Réglages',
-            icon: const Icon(Icons.settings_outlined),
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const ReglagesEcran()),
-            ),
+          PopupMenuButton<String>(
+            tooltip: 'Menu',
+            icon: const Icon(Icons.more_vert),
+            onSelected: (valeur) {
+              switch (valeur) {
+                case 'aujourdhui':
+                  journal.changerJour(DateTime.now());
+                  break;
+                case 'progression':
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const ProgressionEcran()),
+                  );
+                  break;
+                case 'plan':
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const PlanEcran()),
+                  );
+                  break;
+                case 'reglages':
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const ReglagesEcran()),
+                  );
+                  break;
+              }
+            },
+            itemBuilder: (_) => const [
+              PopupMenuItem(
+                value: 'aujourdhui',
+                child: ListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  leading: Icon(Icons.today_outlined),
+                  title: Text('Aujourd\'hui'),
+                ),
+              ),
+              PopupMenuItem(
+                value: 'progression',
+                child: ListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  leading: Icon(Icons.insights_outlined),
+                  title: Text('Progression & IMC'),
+                ),
+              ),
+              PopupMenuItem(
+                value: 'plan',
+                child: ListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  leading: Icon(Icons.calendar_month_outlined),
+                  title: Text('Plan nutritionnel'),
+                ),
+              ),
+              PopupMenuItem(
+                value: 'reglages',
+                child: ListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  leading: Icon(Icons.settings_outlined),
+                  title: Text('Réglages'),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -147,6 +204,29 @@ class _Contenu extends StatelessWidget {
           _CarteResume(
             total: journal.total,
             reglages: journal.reglages,
+          ),
+          const SizedBox(height: 8),
+          // Raccourcis visibles vers les vues de suivi et de plan.
+          Wrap(
+            spacing: 8,
+            children: [
+              ActionChip(
+                avatar: const Icon(Icons.insights_outlined, size: 18),
+                label: const Text('Progression & IMC'),
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const ProgressionEcran()),
+                ),
+              ),
+              ActionChip(
+                avatar: const Icon(Icons.calendar_month_outlined, size: 18),
+                label: const Text('Plan nutritionnel'),
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const PlanEcran()),
+                ),
+              ),
+            ],
           ),
           if (journal.erreur != null)
             Card(
@@ -357,29 +437,7 @@ class _CarteRepas extends StatelessWidget {
         child: ListTile(
           contentPadding:
               const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          leading: repas.photo != null
-              ? ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: Image.file(
-                    File(repas.photo!),
-                    width: 56,
-                    height: 56,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Container(
-                      width: 56,
-                      height: 56,
-                      color: Colors.grey.shade200,
-                      child: const Icon(Icons.image_not_supported_outlined),
-                    ),
-                  ),
-                )
-              : CircleAvatar(
-                  backgroundColor: Colors.green.shade50,
-                  child: Text(
-                    repas.type.substring(0, 1),
-                    style: TextStyle(color: Colors.green.shade800),
-                  ),
-                ),
+          leading: _vignette(repas),
           title: Text('${repas.type} · $heure'),
           subtitle: Text(
             resume.isEmpty ? 'Repas vide' : resume,
@@ -391,6 +449,30 @@ class _CarteRepas extends StatelessWidget {
             style: const TextStyle(fontWeight: FontWeight.bold),
           ),
         ),
+      ),
+    );
+  }
+
+  /// Vignette du repas : photo si lisible, sinon avatar avec la première
+  /// lettre du type (pas de carré gris quand le fichier image est absent).
+  static Widget _vignette(Repas repas) {
+    final avatar = CircleAvatar(
+      backgroundColor: Colors.green.shade50,
+      child: Text(
+        repas.type.substring(0, 1),
+        style: TextStyle(color: Colors.green.shade800),
+      ),
+    );
+    final photo = repas.photo;
+    if (photo == null) return avatar;
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(8),
+      child: Image.file(
+        File(photo),
+        width: 56,
+        height: 56,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => avatar,
       ),
     );
   }

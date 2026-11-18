@@ -31,24 +31,30 @@ class Reglages {
 
 class ServiceReglages {
   static Future<Reglages> charger() async {
-    final prefs = await SharedPreferences.getInstance();
-    return Reglages(
-      cleApi: prefs.getString('cleApi') ?? '',
-      baseUrl: prefs.getString('baseUrl') ?? 'https://api.mistral.ai/v1',
-      modele: prefs.getString('modele') ?? 'pixtral-12b-2409',
-      objectifKcal: prefs.getDouble('objectifKcal') ?? 2000,
-      objectifProt: prefs.getDouble('objectifProt') ?? 100,
-      objectifGluc: prefs.getDouble('objectifGluc') ?? 220,
-      objectifLip: prefs.getDouble('objectifLip') ?? 70,
-      profil: Profil(
-        tailleCm: prefs.getDouble('tailleCm'),
-        age: prefs.getInt('age'),
-        sexe: prefs.getString('sexe') ?? 'f',
-        activite: prefs.getString('activite') ?? 'modere',
-        objectif: prefs.getString('objectifPoids') ?? 'maintien',
-        poidsCibleKg: prefs.getDouble('poidsCibleKg'),
-      ),
-    );
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return Reglages(
+        cleApi: prefs.getString('cleApi') ?? '',
+        baseUrl: prefs.getString('baseUrl') ?? 'https://api.mistral.ai/v1',
+        modele: prefs.getString('modele') ?? 'pixtral-12b-2409',
+        objectifKcal: prefs.getDouble('objectifKcal') ?? 2000,
+        objectifProt: prefs.getDouble('objectifProt') ?? 100,
+        objectifGluc: prefs.getDouble('objectifGluc') ?? 220,
+        objectifLip: prefs.getDouble('objectifLip') ?? 70,
+        profil: Profil(
+          tailleCm: prefs.getDouble('tailleCm'),
+          age: prefs.getInt('age'),
+          sexe: prefs.getString('sexe') ?? 'f',
+          activite: prefs.getString('activite') ?? 'modere',
+          objectif: prefs.getString('objectifPoids') ?? 'maintien',
+          poidsCibleKg: prefs.getDouble('poidsCibleKg'),
+        ),
+      );
+    } catch (_) {
+      // Repli : si les préférences sont illisibles, on renvoie les valeurs
+      // par défaut pour ne jamais bloquer l'interface sur un écran gris.
+      return const Reglages();
+    }
   }
 
   static Future<void> sauver(Reglages reglages) async {

@@ -34,6 +34,7 @@ class _ReglagesEcranState extends State<ReglagesEcran> {
 
   bool _cleVisible = false;
   bool _initialise = false;
+  String? _erreurChargement;
 
   @override
   void initState() {
@@ -42,25 +43,39 @@ class _ReglagesEcranState extends State<ReglagesEcran> {
   }
 
   Future<void> _charger() async {
-    final reglages = await ServiceReglages.charger();
-    if (!mounted) return;
-    setState(() {
-      _cleApiCtl.text = reglages.cleApi;
-      _baseUrlCtl.text = reglages.baseUrl;
-      _modeleCtl.text = reglages.modele;
-      _kcalCtl.text = reglages.objectifKcal.round().toString();
-      _protCtl.text = reglages.objectifProt.round().toString();
-      _glucCtl.text = reglages.objectifGluc.round().toString();
-      _lipCtl.text = reglages.objectifLip.round().toString();
-      _tailleCtl.text = reglages.profil.tailleCm?.toStringAsFixed(0) ?? '';
-      _ageCtl.text = reglages.profil.age?.toString() ?? '';
-      _poidsCibleCtl.text =
-          reglages.profil.poidsCibleKg?.toStringAsFixed(1) ?? '';
-      _sexe = reglages.profil.sexe;
-      _activite = reglages.profil.activite;
-      _objectif = reglages.profil.objectif;
-      _initialise = true;
-    });
+    try {
+      final reglages = await ServiceReglages.charger();
+      if (!mounted) return;
+      setState(() {
+        _remplir(reglages);
+        _erreurChargement = null;
+        _initialise = true;
+      });
+    } catch (e) {
+      // Même en cas d'erreur, le formulaire reste affiché (valeurs courantes)
+      // avec une bannière : jamais d'écran gris bloquant.
+      if (!mounted) return;
+      setState(() {
+        _erreurChargement = e.toString();
+        _initialise = true;
+      });
+    }
+  }
+
+  void _remplir(Reglages reglages) {
+    _cleApiCtl.text = reglages.cleApi;
+    _baseUrlCtl.text = reglages.baseUrl;
+    _modeleCtl.text = reglages.modele;
+    _kcalCtl.text = reglages.objectifKcal.round().toString();
+    _protCtl.text = reglages.objectifProt.round().toString();
+    _glucCtl.text = reglages.objectifGluc.round().toString();
+    _lipCtl.text = reglages.objectifLip.round().toString();
+    _tailleCtl.text = reglages.profil.tailleCm?.toStringAsFixed(0) ?? '';
+    _ageCtl.text = reglages.profil.age?.toString() ?? '';
+    _poidsCibleCtl.text = reglages.profil.poidsCibleKg?.toStringAsFixed(1) ?? '';
+    _sexe = reglages.profil.sexe;
+    _activite = reglages.profil.activite;
+    _objectif = reglages.profil.objectif;
   }
 
   Profil _profilCourant() => Profil(
@@ -153,6 +168,40 @@ class _ReglagesEcranState extends State<ReglagesEcran> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  // ----- Erreur de chargement (le formulaire reste utilisable) -----
+                  if (_erreurChargement != null)
+                    Card(
+                      color: Colors.orange.shade50,
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                const Icon(Icons.warning_amber_rounded,
+                                    color: Colors.orange),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    'Réglages chargés avec les valeurs par défaut '
+                                    '(lecture des préférences impossible : '
+                                    '$_erreurChargement).',
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            OutlinedButton.icon(
+                              icon: const Icon(Icons.refresh),
+                              label: const Text('Réessayer'),
+                              onPressed: _charger,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+
                   // ----- Couche IA -----
                   Card(
                     child: Padding(
