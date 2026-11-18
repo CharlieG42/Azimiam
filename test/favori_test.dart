@@ -36,7 +36,7 @@ void main() {
     });
 
     test('valeurs nulles gérées (saisie libre)', () {
-      const ligne = LigneRepas(
+      final ligne = LigneRepas(
         nom: 'Aliment inventé',
         grammes: 100,
         pour100: ValeursNutritionnelles.vide,
