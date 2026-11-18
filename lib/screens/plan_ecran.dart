@@ -23,6 +23,7 @@ class _PlanEcranState extends State<PlanEcran> {
   List<RepasSuggere> _plan = [];
   DateTime _date = DateTime.now();
   bool _chargement = true;
+  String? _erreur;
 
   static const Map<String, int> _heures = {
     'Petit-déjeuner': 8,
@@ -38,13 +39,26 @@ class _PlanEcranState extends State<PlanEcran> {
   }
 
   Future<void> _charger() async {
-    final reglages = await ServiceReglages.charger();
-    if (!mounted) return;
-    setState(() {
-      _reglages = reglages;
-      _plan = _generer(reglages, _date);
-      _chargement = false;
-    });
+    try {
+      final reglages = await ServiceReglages.charger();
+      if (!mounted) return;
+      setState(() {
+        _reglages = reglages;
+        _plan = _generer(reglages, _date);
+        _erreur = null;
+        _chargement = false;
+      });
+    } catch (e) {
+      // Repli sur les objectifs par défaut : l'écran n'est jamais bloqué
+      // sur un chargement infini.
+      if (!mounted) return;
+      setState(() {
+        _reglages = const Reglages();
+        _plan = _generer(const Reglages(), _date);
+        _erreur = e.toString();
+        _chargement = false;
+      });
+    }
   }
 
   List<RepasSuggere> _generer(Reglages reglages, DateTime date) =>
@@ -120,6 +134,30 @@ class _PlanEcranState extends State<PlanEcran> {
           : ListView(
               padding: const EdgeInsets.all(12),
               children: [
+                if (_erreur != null)
+                  Card(
+                    color: Colors.orange.shade50,
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.warning_amber_rounded,
+                              color: Colors.orange),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Objectifs par défaut utilisés (erreur : $_erreur).',
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: _charger,
+                            child: const Text('Réessayer'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                if (_erreur != null) const SizedBox(height: 8),
                 Card(
                   child: Padding(
                     padding: const EdgeInsets.symmetric(
