@@ -109,17 +109,30 @@ En CI, la signature s'active dès que ces secrets GitHub sont définis (Settings
 
 Sans ces secrets, le build reste signé avec la clé debug (installable en test, mais non publiable sur le Play Store).
 
-## Roadmap
+## Roadmap (priorisée, avec approche)
 
-- 📦 **Import CIQUAL complet** (open data ANSES, ~2 750 aliments + micronutriments) en remplacement de la mini-base
-- 🏷️ **Scan de code-barres** via Open Food Facts (produits industriels)
-- 📈 Historique hebdomadaire / mensuel plus poussé (graphique 14 jours et courbe de poids déjà dessinés nativement)
-- ⭐ Favoris et repas récurrents (« recopier le déjeuner d'hier »)
-- 🧠 Apprentissage des corrections de l'utilisateur (calibrer les quantités par aliment sur l'historique)
-- 📴 Mode hors-ligne : modèle embarqué (TFLite / ML Kit) en repli sans réseau
+**P0 — prochaine PR**
+
+- ⭐ **Favoris & repas récurrents** (« recopier le déjeuner d'hier ») : table SQLite v3 `favoris` (snapshot JSON des lignes : nom, grammes, valeurs / 100 g), étoile sur la carte du repas, section « Repas fréquents » sur l'accueil ; un appui recrée le repas à la date du jour. Faible risque, gros gain de vitesse de saisie.
+
+**P1**
+
+- 📈 **Historique hebdo / mensuel** : les graphiques natifs existants (barres 14 j, courbe de poids) passent à 7 / 30 / 90 j avec moyennes glissantes ; les totaux sont déjà agrégés côté SQL (`totauxParJour`). Aucune dépendance ajoutée.
+- 🏷️ **Scan de code-barres** via Open Food Facts : `mobile_scanner` + appel API OFF (code → produit), pré-remplissage de la ligne avec badge « Open Food Facts », repli saisie manuelle hors réseau (permission réseau déjà présente via le package http).
+
+**P2**
+
+- 🧠 **Apprentissage des corrections** : journaliser (aliment, quantité proposée par l'IA, quantité corrigée) et proposer la médiane par aliment à la prochaine photo. L'IA identifie toujours, elle ne calcule jamais.
+- 📦 **Import CIQUAL complet** (open data ANSES, ~2 750 aliments + micronutriments) : script de conversion CSV → asset embarqué, en remplacement de la mini-base ; les tests de cohérence kcal/macros seront étendus à toute la base.
+- 📤 **Export CSV** du journal et des pesées (partage ou suivi externe).
+
+**P3**
+
+- 📴 **Mode hors-ligne** : modèle embarqué (TFLite / ML Kit) en repli sans réseau — chantier à cadrer séparément.
 - ⚖️ Poids/taille/objectifs avec calcul d'objectifs automatiques ✅ (fait : profil + IMC + objectifs auto)
 
 ## Avertissements
+
 
 - Les valeurs de la mini-base sont **approximatives** (prototype) : l'import CIQUAL complet est prioritaire dans la roadmap.
 - Azimiam est un outil d'information, pas un dispositif médical.
