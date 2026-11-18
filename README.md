@@ -28,6 +28,8 @@ flowchart LR
 - ⚖️ **Profil & IMC** : taille, âge, sexe, activité et objectif de poids (maintien / perte / prise avec poids cible) ; calcul automatique des objectifs caloriques (métabolisme de base Mifflin-St Jeor × facteur d'activité, ajusté à l'objectif avec planchers de sécurité 1 200 / 1 500 kcal) et du poids idéal (formule de Devine)
 - 📈 **Suivi des progressions** : pesées historisées (une par jour, SQLite), courbe de poids, catégorie IMC (OMS), progression vers le poids cible (% parcouru, durée estimée à ~7 700 kcal/kg), moyennes d'apports 7/30 jours et graphique des calories des 14 derniers jours vs objectif (dessiné nativement, sans dépendance graphique)
 - 📅 **Plan nutritionnel** : fixe les **objectifs globaux** de la journée (kcal, protéines, glucides, lipides) et affiche la progression réelle du jour (réalisé / objectif / reste) — **sans imposer de plats précis**
+- ⭐ Favoris & repas récurrents (« recopier le déjeuner d'hier ») : étoile sur la carte du repas, section « Repas fréquents » sur l'accueil, recréation en un appui (table SQLite `favoris`)
+- 📤 Export CSV du journal et des pesées (dossier `Téléchargements/Azimiam`)
 - 🖼️ Photo du repas archivée dans l'app et affichée dans le journal
 
 ## Structure
@@ -40,6 +42,7 @@ lib/
     repas.dart                # LigneRepas, Repas, typesRepas
     profil.dart               # Profil : taille, âge, sexe, activité, objectif
     progression.dart          # Pesee, TotalJour
+    favori.dart               # FavoriRepas : snapshot JSON + empreinte
   data/
     mini_base.dart            # ~110 aliments, valeurs / 100 g (approx. CIQUAL)
   services/
@@ -48,6 +51,7 @@ lib/
     service_imc.dart          # IMC (OMS), Mifflin-St Jeor, objectifs auto (testé)
     service_base.dart         # SQLite : repas, lignes, pesées, totaux/jour
     service_reglages.dart     # SharedPreferences : clé API, objectifs, profil
+    service_export.dart       # export CSV du journal + pesées (testé)
   state/
     journal.dart              # ChangeNotifier : journée, totaux, erreurs
     progression.dart          # ChangeNotifier : pesées, totaux 30 j, réglages
@@ -61,6 +65,8 @@ test/
   service_ia_test.dart        # 10 tests : parsing tolérant
   service_nutrition_test.dart # 14 tests : normalisation, matching, calculs
   service_imc_test.dart       # IMC, métabolisme, objectifs auto, durées
+  favori_test.dart            # sérialisation favoris + empreintes
+  service_export_test.dart    # export CSV
   mini_base_test.dart         # intégrité de la mini-base
 android/                       # coque Android versionnée (signature release configurée)
 .github/workflows/build-apk.yml  # CI : tests, APK signé, Release GitHub
@@ -83,7 +89,7 @@ Clé API : Réglages → « Couche IA (vision) » → coller une clé [console.m
 `.github/workflows/build-apk.yml` : à chaque push sur `main` (et en PR), ou manuellement (onglet Actions → Run workflow) —
 1. Décodage des binaires `.b64`, `pub get`
 2. `flutter analyze` (infos non bloquantes) puis **`flutter test` bloquant**
-3. `flutter build apk --release`, **signé** si les secrets sont configurés (repli sur clé debug sinon) ; `versionCode` = n° de build (`GITHUB_RUN_NUMBER`) porté par le `pubspec.yaml`. **En pull request**, le n° de PR est ajouté à la `versionName` de l'APK (`0.2.0` → `0.2.0-pr3`, soit `version: 0.2.0-pr3+<build>` dans le pubspec) et au **nom du fichier** : **`azimiam-v<version>-pr<N>-<n° de build>.apk`**, téléchargeable via l'artefact `azimiam-release-apk` du run.
+3. `flutter build apk --release`, **signé** si les secrets sont configurés (repli sur clé debug sinon) ; `versionCode` = n° de build (`GITHUB_RUN_NUMBER`) porté par le `pubspec.yaml`. **En pull request**, le n° de PR est ajouté à la `versionName` de l'APK (`0.2.0` → `0.2.0-pr3`, soit `version: 0.2.0-pr3+<build>` dans le pubspec) et au **nom du fichier** : **`azimiam-v<version>-pr<N>-<n° de build>.apk`**, téléchargeable via l'artefact `azimiam-release-apk` du run. Sur `main`, chaque **merge de PR** publie aussi l'APK dans la Release, nommé avec le n° de la PR fusionnée (`azimiam-v<version>-<build>-pr<N>.apk`, lu dans le commit de merge) et mentionné dans les notes de release.
 4. **Publication d'une Release GitHub** `v<version>` (lue dans `pubspec.yaml`, **hors PR uniquement**) avec l'APK **`azimiam-v<version>-<n° de build>.apk`** attaché ; si le tag existe déjà, l'APK est re-téléversé (`--clobber`)
 
 Le workflow a été validé sur un projet identique : analyse sans erreur, 24/24 tests, compilation complète OK.
@@ -113,18 +119,18 @@ Sans ces secrets, le build reste signé avec la clé debug (installable en test,
 
 **P0 — prochaine PR**
 
-- ⭐ **Favoris & repas récurrents** (« recopier le déjeuner d'hier ») : table SQLite v3 `favoris` (snapshot JSON des lignes : nom, grammes, valeurs / 100 g), étoile sur la carte du repas, section « Repas fréquents » sur l'accueil ; un appui recrée le repas à la date du jour. Faible risque, gros gain de vitesse de saisie.
+- ⭐ **Favoris & repas récurrents** (« recopier le déjeuner d'hier ») : table SQLite v3 `favoris` (snapshot JSON des lignes : nom, grammes, valeurs / 100 g), étoile sur la carte du repas, section « Repas fréquents » sur l'accueil ; un appui recrée le repas à la date du jour. ✅ fait en v0.3 (étoile + « Repas fréquents »).
 
 **P1**
 
-- 📈 **Historique hebdo / mensuel** : les graphiques natifs existants (barres 14 j, courbe de poids) passent à 7 / 30 / 90 j avec moyennes glissantes ; les totaux sont déjà agrégés côté SQL (`totauxParJour`). Aucune dépendance ajoutée.
+- 📈 **Historique hebdo / mensuel** : les graphiques natifs existants (barres 14 j, courbe de poids) passent à 7 / 30 / 90 j avec moyennes glissantes ; les totaux sont déjà agrégés côté SQL (`totauxParJour`). Aucune dépendance ajoutée. ✅ fait en v0.3 (7/14/30/90 j + moyennes 7/30/90).
 - 🏷️ **Scan de code-barres** via Open Food Facts : `mobile_scanner` + appel API OFF (code → produit), pré-remplissage de la ligne avec badge « Open Food Facts », repli saisie manuelle hors réseau (permission réseau déjà présente via le package http).
 
 **P2**
 
 - 🧠 **Apprentissage des corrections** : journaliser (aliment, quantité proposée par l'IA, quantité corrigée) et proposer la médiane par aliment à la prochaine photo. L'IA identifie toujours, elle ne calcule jamais.
 - 📦 **Import CIQUAL complet** (open data ANSES, ~2 750 aliments + micronutriments) : script de conversion CSV → asset embarqué, en remplacement de la mini-base ; les tests de cohérence kcal/macros seront étendus à toute la base.
-- 📤 **Export CSV** du journal et des pesées (partage ou suivi externe).
+- 📤 **Export CSV** du journal et des pesées (partage ou suivi externe). ✅ fait en v0.3 (CSV dans `Téléchargements/Azimiam`).
 
 **P3**
 
