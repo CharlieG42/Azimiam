@@ -43,6 +43,9 @@ jobs:
     env:
       # Permet de savoir si les secrets de signature sont configurés.
       AVEC_KEYSTORE: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
+      # Numéro de la PR quand le run vient d'une pull request (vide sinon) :
+      # ajouté à la versionName de l'APK et au nom du fichier APK.
+      PR_NUM: ${{ github.event.pull_request.number || '' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -83,17 +86,37 @@ jobs:
           keyPassword=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           PROPS
 
-      # versionCode = numéro de build : le pubspec porte la version
-      # (pas de drapeau --build-number sur flutter build apk en 3.24.4).
-      - name: Version par numéro de build
+      # versionCode = n° de build via le pubspec (pas de --build-number sur
+      # flutter build apk en 3.24.4). En pull request, le n° de PR est ajouté
+      # à la versionName : 0.2.0+2 -> 0.2.0-pr3+42 (versionName affichée = 0.2.0-pr3).
+      - name: Version par n° de build (+ n° de PR si pull request)
         run: |
-          sed -i -E "s/^version: (.*)\+.*$/version: \1+${GITHUB_RUN_NUMBER}/" pubspec.yaml
+          VERSION_BASE=$(grep '^version:' pubspec.yaml | sed 's/version: *//' | cut -d '+' -f 1)
+          echo "VERSION_BASE=$VERSION_BASE" >> "$GITHUB_ENV"
+          if [ -n "$PR_NUM" ]; then
+            sed -i -E "s/^version: .*/version: ${VERSION_BASE}-pr${PR_NUM}+${GITHUB_RUN_NUMBER}/" pubspec.yaml
+          else
+            sed -i -E "s/^version: .*/version: ${VERSION_BASE}+${GITHUB_RUN_NUMBER}/" pubspec.yaml
+          fi
           grep '^version:' pubspec.yaml
 
       - name: Build APK release
         run: |
           set -o pipefail
           flutter build apk --release 2>&1 | tee build.log
+
+      # Nom de l'APK : azimiam-v<version>-<build>.apk, et
+      # azimiam-v<version>-pr<N>-<build>.apk quand le run vient d'une PR.
+      - name: Nommer l'APK (version + n° de build + n° de PR)
+        run: |
+          if [ -n "$PR_NUM" ]; then
+            APK_FINAL="azimiam-v${VERSION_BASE}-pr${PR_NUM}-${GITHUB_RUN_NUMBER}.apk"
+          else
+            APK_FINAL="azimiam-v${VERSION_BASE}-${GITHUB_RUN_NUMBER}.apk"
+          fi
+          cp build/app/outputs/flutter-apk/app-release.apk "$APK_FINAL"
+          echo "APK_FINAL=$APK_FINAL" >> "$GITHUB_ENV"
+          echo "APK produit : $APK_FINAL"
 
       # En cas d'échec, remonte les dernières lignes du journal en
       # annotations de check (lisibles sans se connecter).
@@ -111,22 +134,17 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          VERSION=$(grep '^version:' pubspec.yaml | sed 's/version: *//' | cut -d '+' -f 1)
-          NUM="$GITHUB_RUN_NUMBER"
-          TAG="v${VERSION}"
-          APK="build/app/outputs/flutter-apk/app-release.apk"
-          APK_FINAL="azimiam-v${VERSION}-${NUM}.apk"
-          cp "$APK" "$APK_FINAL"
+          TAG="v${VERSION_BASE}"
           echo "Publication de $TAG -> $APK_FINAL"
           if gh release view "$TAG" > /dev/null 2>&1; then
             gh release upload "$TAG" "$APK_FINAL" --clobber
           else
             gh release create "$TAG" "$APK_FINAL" \
               --title "Azimiam $TAG" \
-              --notes "APK Android signé ($TAG, build n°${NUM}). Voir le README pour l'installation et la configuration de la clé API Mistral."
+              --notes "APK Android signé ($TAG, build n°${GITHUB_RUN_NUMBER}). Voir le README pour l'installation et la configuration de la clé API Mistral."
           fi
 
       - uses: actions/upload-artifact@v4
         with:
           name: azimiam-release-apk
-          path: build/app/outputs/flutter-apk/app-release.apk
+          path: ${{ env.APK_FINAL }}

@@ -85,8 +85,8 @@ Clé API : Réglages → « Couche IA (vision) » → coller une clé [console.m
 `.github/workflows/build-apk.yml` : à chaque push sur `main` (et en PR), ou manuellement (onglet Actions → Run workflow) —
 1. Décodage des binaires `.b64`, `pub get`
 2. `flutter analyze` (infos non bloquantes) puis **`flutter test` bloquant**
-3. `flutter build apk --release`, **signé** si les secrets sont configurés (repli sur clé debug sinon) ; `versionCode` = numéro de build
-4. **Publication d'une Release GitHub** `v<version>` (lue dans `pubspec.yaml`) avec l'APK **`azimiam-v<version>-<n° de build>.apk`** attaché ; si le tag existe déjà, l'APK est re-téléversé (`--clobber`) + artefact `azimiam-release-apk`
+3. `flutter build apk --release`, **signé** si les secrets sont configurés (repli sur clé debug sinon) ; `versionCode` = n° de build (`GITHUB_RUN_NUMBER`) porté par le `pubspec.yaml`. **En pull request**, le n° de PR est ajouté à la `versionName` de l'APK (`0.2.0` → `0.2.0-pr3`, soit `version: 0.2.0-pr3+<build>` dans le pubspec) et au **nom du fichier** : **`azimiam-v<version>-pr<N>-<n° de build>.apk`**, téléchargeable via l'artefact `azimiam-release-apk` du run.
+4. **Publication d'une Release GitHub** `v<version>` (lue dans `pubspec.yaml`, **hors PR uniquement**) avec l'APK **`azimiam-v<version>-<n° de build>.apk`** attaché ; si le tag existe déjà, l'APK est re-téléversé (`--clobber`)
 
 Le workflow a été validé sur un projet identique : analyse sans erreur, 24/24 tests, compilation complète OK.
 
