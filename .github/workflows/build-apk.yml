@@ -46,6 +46,9 @@ jobs:
       # Numéro de la PR quand le run vient d'une pull request (vide sinon) :
       # ajouté à la versionName de l'APK et au nom du fichier APK.
       PR_NUM: ${{ github.event.pull_request.number || '' }}
+      # N° de PR lu dans le commit de merge (push sur main) : sert à nommer
+      # l'APK publié dans la Release (azimiam-v<version>-<build>-pr<N>.apk).
+      MERGE_PR_NUM: ''
     steps:
       - uses: actions/checkout@v4
 
@@ -60,6 +63,15 @@ jobs:
           # un Flutter plus récent la rejette à la configuration Gradle.
           flutter-version: 3.24.4
           cache: true
+
+      # Sur un push qui est un merge de PR, on lit le n° de la PR dans le
+      # message du commit de merge (ex. "Merge pull request #4 from ...").
+      - name: Détecter le n° de PR du merge (push sur main)
+        if: github.event_name == 'push'
+        run: |
+          MERGE_PR=$(git log -1 --pretty=%s | sed -n 's/.*Merge pull request #\([0-9][0-9]*\).*/\1/p')
+          echo "MERGE_PR_NUM=$MERGE_PR" >> "$GITHUB_ENV"
+          echo "PR du merge : ${MERGE_PR:-aucune}"
 
       # Le dépôt stocke les fichiers binaires (wrapper Gradle, icônes) en
       # Base64 (*.b64) : on les redécode en place avant le build.
@@ -111,6 +123,10 @@ jobs:
         run: |
           if [ -n "$PR_NUM" ]; then
             APK_FINAL="azimiam-v${VERSION_BASE}-pr${PR_NUM}-${GITHUB_RUN_NUMBER}.apk"
+          elif [ -n "$MERGE_PR_NUM" ]; then
+            # push sur main après merge d'une PR : l'APK de la Release porte
+            # aussi le n° de la PR fusionnée
+            APK_FINAL="azimiam-v${VERSION_BASE}-${GITHUB_RUN_NUMBER}-pr${MERGE_PR_NUM}.apk"
           else
             APK_FINAL="azimiam-v${VERSION_BASE}-${GITHUB_RUN_NUMBER}.apk"
           fi
@@ -135,13 +151,18 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           TAG="v${VERSION_BASE}"
+          NOTES="APK Android signé ($TAG, build n°${GITHUB_RUN_NUMBER})."
+          if [ -n "$MERGE_PR_NUM" ]; then
+            NOTES="$NOTES Fusion de la PR #${MERGE_PR_NUM}."
+          fi
+          NOTES="$NOTES Voir le README pour l'installation et la configuration de la clé API Mistral."
           echo "Publication de $TAG -> $APK_FINAL"
           if gh release view "$TAG" > /dev/null 2>&1; then
             gh release upload "$TAG" "$APK_FINAL" --clobber
           else
             gh release create "$TAG" "$APK_FINAL" \
               --title "Azimiam $TAG" \
-              --notes "APK Android signé ($TAG, build n°${GITHUB_RUN_NUMBER}). Voir le README pour l'installation et la configuration de la clé API Mistral."
+              --notes "$NOTES"
           fi
 
       - uses: actions/upload-artifact@v4

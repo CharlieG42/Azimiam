@@ -1,10 +1,14 @@
+import 'dart:io';
+
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
 
+import '../models/favori.dart';
 import '../models/progression.dart';
 import '../models/repas.dart';
 import '../models/valeurs.dart';
+import 'service_export.dart';
 
 /// Base de données locale (SQLite) : repas, lignes d'aliments et pesées.
 class ServiceBase {
@@ -19,7 +23,7 @@ class ServiceBase {
     final dossier = await getApplicationDocumentsDirectory();
     return openDatabase(
       p.join(dossier.path, 'azimiam.db'),
-      version: 2,
+      version: 3,
       onCreate: (db, version) async {
         await _creerTables(db);
       },
@@ -30,6 +34,17 @@ class ServiceBase {
               id INTEGER PRIMARY KEY AUTOINCREMENT,
               jour TEXT NOT NULL UNIQUE,
               kg REAL NOT NULL
+            )
+          ''');
+        }
+        if (oldVersion < 3) {
+          await db.execute('''
+            CREATE TABLE IF NOT EXISTS favoris(
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              nom TEXT NOT NULL,
+              type TEXT NOT NULL,
+              cree_le TEXT NOT NULL,
+              lignes TEXT NOT NULL
             )
           ''');
         }
@@ -64,6 +79,15 @@ class ServiceBase {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         jour TEXT NOT NULL UNIQUE,
         kg REAL NOT NULL
+      )
+    ''');
+    await db.execute('''
+      CREATE TABLE favoris(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        nom TEXT NOT NULL,
+        type TEXT NOT NULL,
+        cree_le TEXT NOT NULL,
+        lignes TEXT NOT NULL
       )
     ''');
   }
@@ -110,7 +134,20 @@ class ServiceBase {
       whereArgs: ['${cleJour(jour)}%'],
       orderBy: 'pris_le',
     );
+    return _chargerRepas(db, lignesRepas);
+  }
 
+  /// Tous les repas enregistrés (tous jours), pour l'export CSV.
+  Future<List<Repas>> tousLesRepas() async {
+    final db = await base;
+    final lignesRepas = await db.query('repas', orderBy: 'pris_le');
+    return _chargerRepas(db, lignesRepas);
+  }
+
+  Future<List<Repas>> _chargerRepas(
+    Database db,
+    List<Map<String, Object?>> lignesRepas,
+  ) async {
     final resultats = <Repas>[];
     for (final ligne in lignesRepas) {
       final items = await db.query(
@@ -216,5 +253,57 @@ class ServiceBase {
               ),
             ))
         .toList();
+  }
+
+  // ------------------------------------------------------------ Favoris
+
+  /// Enregistre un favori (snapshot JSON des lignes). Renvoie l'id.
+  Future<int> ajouterFavori(FavoriRepas favori) async {
+    final db = await base;
+    return db.insert('favoris', {
+      'nom': favori.nom,
+      'type': favori.type,
+      'cree_le': cleInstant(favori.creeLe),
+      'lignes': FavoriRepas.lignesToJson(favori.lignes),
+    });
+  }
+
+  /// Tous les favoris, du plus récent au plus ancien.
+  Future<List<FavoriRepas>> tousLesFavoris() async {
+    final db = await base;
+    final rows = await db.query('favoris', orderBy: 'cree_le DESC, id DESC');
+    return rows
+        .map((r) => FavoriRepas(
+              id: r['id'] as int,
+              nom: r['nom'] as String,
+              type: r['type'] as String,
+              creeLe: DateTime.parse(r['cree_le'] as String),
+              lignes: FavoriRepas.lignesFromJson(r['lignes'] as String),
+            ))
+        .toList();
+  }
+
+  Future<void> supprimerFavori(int id) async {
+    final db = await base;
+    await db.delete('favoris', where: 'id = ?', whereArgs: [id]);
+  }
+
+  // ------------------------------------------------------------- Export
+
+  /// Exporte journal + pesées en CSV dans le dossier Téléchargements
+  /// (repli : documents de l'app). Renvoie le chemin du fichier créé.
+  Future<String> exporterCsv() async {
+    final csv = ServiceExport.toCsv(
+      repas: await tousLesRepas(),
+      pesees: await historiquePesees(),
+    );
+    final telechargements = await getDownloadsDirectory();
+    final racine = telechargements?.path ??
+        (await getApplicationDocumentsDirectory()).path;
+    final fichier = File(
+        p.join(racine, 'Azimiam', 'export_${cleJour(DateTime.now())}.csv'));
+    await fichier.create(recursive: true);
+    await fichier.writeAsString(csv);
+    return fichier.path;
   }
 }

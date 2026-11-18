@@ -11,7 +11,7 @@ class Progression extends ChangeNotifier {
   /// Pesées, de la plus récente à la plus ancienne.
   List<Pesee> pesees = [];
 
-  /// Totaux nutritionnels des 30 derniers jours (jours avec repas uniquement).
+  /// Totaux nutritionnels des 90 derniers jours (jours avec repas uniquement).
   List<TotalJour> totaux = [];
 
   Reglages reglages = const Reglages();
@@ -30,7 +30,7 @@ class Progression extends ChangeNotifier {
       pesees = await _base.historiquePesees();
       final maintenant = DateTime.now();
       totaux = await _base.totauxParJour(
-        maintenant.subtract(const Duration(days: 30)),
+        maintenant.subtract(const Duration(days: 90)),
         maintenant,
       );
     } catch (e) {

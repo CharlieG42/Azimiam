@@ -246,45 +246,49 @@ class _AjoutRepasEcranState extends State<AjoutRepasEcran> {
             title: const Text('Ajouter un aliment'),
             content: SizedBox(
               width: double.maxFinite,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    controller: controleur,
-                    autofocus: true,
-                    decoration: InputDecoration(
-                      hintText: 'Ex. : poulet, riz, pomme…',
-                      errorText: erreur,
-                    ),
-                    onChanged: (valeur) => majEtat(() {
-                      erreur = null;
-                      suggestions = ServiceNutrition.suggestions(valeur);
-                    }),
-                  ),
-                  const SizedBox(height: 12),
-                  if (suggestions.isEmpty)
-                    const Text(
-                      'Aucune suggestion : « Saisie libre » créera une ligne à compléter (valeurs / 100 g à la main).',
-                    )
-                  else
-                    ConstrainedBox(
-                      constraints: const BoxConstraints(maxHeight: 240),
-                      child: ListView.builder(
-                        shrinkWrap: true,
-                        itemCount: suggestions.length,
-                        itemBuilder: (_, i) {
-                          final aliment = suggestions[i];
-                          return ListTile(
-                            dense: true,
-                            title: Text(aliment.nom),
-                            subtitle: Text(
-                                '${aliment.valeurs.kcal.round()} kcal / 100 g'),
-                            onTap: () => Navigator.pop(context, aliment),
-                          );
-                        },
+              // Scrollable : le dialogue reste utilisable même avec le
+              // clavier ouvert sur un petit écran.
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
+                      controller: controleur,
+                      autofocus: true,
+                      decoration: InputDecoration(
+                        hintText: 'Ex. : poulet, riz, pomme…',
+                        errorText: erreur,
                       ),
+                      onChanged: (valeur) => majEtat(() {
+                        erreur = null;
+                        suggestions = ServiceNutrition.suggestions(valeur);
+                      }),
                     ),
-                ],
+                    const SizedBox(height: 12),
+                    if (suggestions.isEmpty)
+                      const Text(
+                        'Aucune suggestion : « Saisie libre » créera une ligne à compléter (valeurs / 100 g à la main).',
+                      )
+                    else
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(maxHeight: 200),
+                        child: ListView.builder(
+                          shrinkWrap: true,
+                          itemCount: suggestions.length,
+                          itemBuilder: (_, i) {
+                            final aliment = suggestions[i];
+                            return ListTile(
+                              dense: true,
+                              title: Text(aliment.nom),
+                              subtitle: Text(
+                                  '${aliment.valeurs.kcal.round()} kcal / 100 g'),
+                              onTap: () => Navigator.pop(context, aliment),
+                            );
+                          },
+                        ),
+                      ),
+                  ],
+                ),
               ),
             ),
             actions: [
