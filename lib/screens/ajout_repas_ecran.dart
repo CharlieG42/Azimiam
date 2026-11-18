@@ -223,6 +223,18 @@ class _AjoutRepasEcranState extends State<AjoutRepasEcran> {
   }
 
   Future<void> _ajouterManuel() async {
+    try {
+      await _dialogueAjoutManuel();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Ajout d\'aliment impossible : $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _dialogueAjoutManuel() async {
     final controleur = TextEditingController();
     final resultat = await showDialog<Object>(
       context: context,
@@ -276,7 +288,11 @@ class _AjoutRepasEcranState extends State<AjoutRepasEcran> {
                 child: const Text('Annuler'),
               ),
               FilledButton(
-                onPressed: () => Navigator.pop(context, controleur.text.trim()),
+                // Désactivé si le champ est vide : évite de fermer le
+                // dialogue sans rien ajouter.
+                onPressed: controleur.text.trim().isEmpty
+                    ? null
+                    : () => Navigator.pop(context, controleur.text.trim()),
                 child: const Text('Saisie libre'),
               ),
             ],
@@ -351,7 +367,16 @@ class _AjoutRepasEcranState extends State<AjoutRepasEcran> {
     );
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Ajouter un repas')),
+      appBar: AppBar(
+        title: const Text('Ajouter un repas'),
+        actions: [
+          IconButton(
+            tooltip: 'Ajouter un aliment manuellement',
+            icon: const Icon(Icons.add_circle_outline),
+            onPressed: _ajouterManuel,
+          ),
+        ],
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(12),
         child: Column(
