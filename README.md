@@ -30,6 +30,8 @@ flowchart LR
 - 📅 **Plan nutritionnel** : fixe les **objectifs globaux** de la journée (kcal, protéines, glucides, lipides) et affiche la progression réelle du jour (réalisé / objectif / reste) — **sans imposer de plats précis**
 - ⭐ Favoris & repas récurrents (« recopier le déjeuner d'hier ») : étoile sur la carte du repas, section « Repas fréquents » sur l'accueil, recréation en un appui (table SQLite `favoris`)
 - 📤 Export CSV du journal et des pesées (dossier `Téléchargements/Azimiam`)
+- ℹ️ Menu « À propos » : version embarquée telle que définie dans le `pubspec.yaml` (ex. `0.2.0-pr8+25` en PR, `0.2.0+25` sur main), principe de l'app et avertissement
+- 🎨 Icône d'app dédiée (assiette + couverts sur fond vert) : PNG mipmap 48→192 px + icône adaptative vectorielle (Android 8+)
 - 🖼️ Photo du repas archivée dans l'app et affichée dans le journal
 
 ## Structure
@@ -37,6 +39,7 @@ flowchart LR
 ```
 lib/
   main.dart                    # point d'entrée, thème, locale fr, providers
+  version.dart                 # version embarquée (regénérée par la CI au build)
   models/
     valeurs.dart              # ValeursNutritionnelles (pour 100 g ou totaux)
     repas.dart                # LigneRepas, Repas, typesRepas
@@ -60,6 +63,7 @@ lib/
     ajout_repas_ecran.dart    # photo → IA → correction → enregistrement
     progression_ecran.dart    # IMC, courbe de poids, apports 7/14/30 jours
     plan_ecran.dart           # objectifs globaux du jour vs réalisé (sans plats imposés)
+    a_propos_ecran.dart       # écran « À propos » (version embarquée)
     reglages_ecran.dart       # clé API, modèle, profil, objectifs (+ calcul auto)
 test/
   service_ia_test.dart        # 10 tests : parsing tolérant
@@ -67,6 +71,7 @@ test/
   service_imc_test.dart       # IMC, métabolisme, objectifs auto, durées
   favori_test.dart            # sérialisation favoris + empreintes
   service_export_test.dart    # export CSV
+  version_test.dart           # format de la version embarquée
   mini_base_test.dart         # intégrité de la mini-base
 android/                       # coque Android versionnée (signature release configurée)
 .github/workflows/build-apk.yml  # CI : tests, APK signé, Release GitHub
@@ -89,7 +94,7 @@ Clé API : Réglages → « Couche IA (vision) » → coller une clé [console.m
 `.github/workflows/build-apk.yml` : à chaque push sur `main` (et en PR), ou manuellement (onglet Actions → Run workflow) —
 1. Décodage des binaires `.b64`, `pub get`
 2. `flutter analyze` (infos non bloquantes) puis **`flutter test` bloquant**
-3. `flutter build apk --release`, **signé** si les secrets sont configurés (repli sur clé debug sinon) ; `versionCode` = n° de build (`GITHUB_RUN_NUMBER`) porté par le `pubspec.yaml`. **En pull request**, le n° de PR est ajouté à la `versionName` de l'APK (`0.2.0` → `0.2.0-pr3`, soit `version: 0.2.0-pr3+<build>` dans le pubspec) et au **nom du fichier** : **`azimiam-v<version>-pr<N>-<n° de build>.apk`**, téléchargeable via l'artefact `azimiam-release-apk` du run. Sur `main`, chaque **merge de PR** publie aussi l'APK dans la Release, nommé avec le n° de la PR fusionnée (`azimiam-v<version>-<build>-pr<N>.apk`, lu dans le commit de merge) et mentionné dans les notes de release.
+3. `flutter build apk --release`, **signé** si les secrets sont configurés (repli sur clé debug sinon) ; `versionCode` = n° de build (`GITHUB_RUN_NUMBER`) porté par le `pubspec.yaml`. **En pull request**, le n° de PR est ajouté à la `versionName` de l'APK (`0.2.0` → `0.2.0-pr3`, soit `version: 0.2.0-pr3+<build>` dans le pubspec) et au **nom du fichier** : **`azimiam-v<version>-pr<N>-<n° de build>.apk`**, téléchargeable via l'artefact `azimiam-release-apk` du run. Sur `main`, chaque **merge de PR** publie aussi l'APK dans la Release, nommé avec le n° de la PR fusionnée (`azimiam-v<version>-<build>-pr<N>.apk`, lu dans le commit de merge) et mentionné dans les notes de release. La même version est écrite dans `lib/version.dart` au build (affichée dans « À propos »).
 4. **Publication d'une Release GitHub** `v<version>` (lue dans `pubspec.yaml`, **hors PR uniquement**) avec l'APK **`azimiam-v<version>-<n° de build>.apk`** attaché ; si le tag existe déjà, l'APK est re-téléversé (`--clobber`)
 
 Le workflow a été validé sur un projet identique : analyse sans erreur, 24/24 tests, compilation complète OK.

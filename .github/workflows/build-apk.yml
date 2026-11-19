@@ -111,6 +111,9 @@ jobs:
             sed -i -E "s/^version: .*/version: ${VERSION_BASE}+${GITHUB_RUN_NUMBER}/" pubspec.yaml
           fi
           grep '^version:' pubspec.yaml
+          # Même version embarquée dans l'app (affichée dans « À propos ») :
+          printf "/// Version embarquée (regénérée par la CI au build).\nconst String kVersionApp = '%s';\n" "$(grep '^version:' pubspec.yaml | sed 's/version: *//')" > lib/version.dart
+          grep 'kVersionApp' lib/version.dart
 
       - name: Build APK release
         run: |
