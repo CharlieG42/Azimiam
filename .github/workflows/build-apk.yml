@@ -168,6 +168,36 @@ jobs:
               --notes "$NOTES"
           fi
 
+      # Nettoyage de la Release : on ne garde que l'APK de la dernière
+      # génération (celui qui vient d'être publié) ; tous les autres assets
+      # azimiam-*.apk sont supprimés pour éviter d'installer un build périmé.
+      - name: Nettoyer la Release (dernier build uniquement)
+        if: github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="v${VERSION_BASE}"
+          REL_ID=$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${TAG}" --jq '.id' 2>/dev/null || true)
+          if [ -z "$REL_ID" ]; then
+            echo "Release ${TAG} introuvable : aucun nettoyage."
+            exit 0
+          fi
+          echo "Release ${TAG} (id ${REL_ID}) : on ne garde que ${APK_FINAL}"
+          gh api "repos/${GITHUB_REPOSITORY}/releases/${REL_ID}/assets?per_page=100" \
+            --paginate --jq '.[] | "\(.id)\t\(.name)"' |
+          while IFS=$'\t' read -r id nom; do
+            case "$nom" in
+              azimiam-*.apk)
+                if [ "$nom" != "$APK_FINAL" ]; then
+                  echo "  suppression de l'ancien APK : ${nom} (id ${id})"
+                  gh api -X DELETE "repos/${GITHUB_REPOSITORY}/releases/assets/${id}" || true
+                fi
+                ;;
+            esac
+          done || true
+          echo "Assets restants dans la Release :"
+          gh api "repos/${GITHUB_REPOSITORY}/releases/${REL_ID}/assets?per_page=100" --jq '.[].name' || true
+
       - uses: actions/upload-artifact@v4
         with:
           name: azimiam-release-apk
