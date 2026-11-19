@@ -97,7 +97,7 @@ Clé API : Réglages → « Couche IA (vision) » → coller une clé [console.m
 1. Décodage des binaires `.b64`, `pub get`
 2. `flutter analyze` (infos non bloquantes) puis **`flutter test` bloquant**
 3. `flutter build apk --release`, **signé** si les secrets sont configurés (repli sur clé debug sinon) ; `versionCode` = n° de build (`GITHUB_RUN_NUMBER`) porté par le `pubspec.yaml`. **En pull request**, le n° de PR est ajouté à la `versionName` de l'APK (`0.2.0` → `0.2.0-pr3`, soit `version: 0.2.0-pr3+<build>` dans le pubspec) et au **nom du fichier** : **`azimiam-v<version>-pr<N>-<n° de build>.apk`**, téléchargeable via l'artefact `azimiam-release-apk` du run. Sur `main`, chaque **merge de PR** publie aussi l'APK dans la Release, nommé avec le n° de la PR fusionnée (`azimiam-v<version>-<build>-pr<N>.apk`, lu dans le commit de merge) et mentionné dans les notes de release. La même version est écrite dans `lib/version.dart` au build (affichée dans « À propos »).
-4. **Publication d'une Release GitHub** `v<version>` (lue dans `pubspec.yaml`, **hors PR uniquement**) avec l'APK **`azimiam-v<version>-<n° de build>.apk`** attaché ; si le tag existe déjà, l'APK est re-téléversé (`--clobber`)
+4. **Publication d'une Release GitHub** `v<version>` (lue dans `pubspec.yaml`, **hors PR uniquement**) avec l'APK **`azimiam-v<version>-<n° de build>.apk`** attaché ; si le tag existe déjà, l'APK est re-téléversé (`--clobber`) ; à chaque publication, les anciens assets `azimiam-*.apk` de la Release sont **supprimés automatiquement**, il ne reste que **l'APK du dernier build** (évite d'installer un build périmé)
 
 Le workflow a été validé sur un projet identique : analyse sans erreur, 24/24 tests, compilation complète OK.
 
