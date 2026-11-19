@@ -22,7 +22,7 @@ flowchart LR
 - 📷 Photo (caméra ou galerie) → analyse par modèle de vision (Mistral Pixtral par défaut, tout endpoint « chat completions » compatible OpenAI convient)
 - ✏️ Correction rapide : quantité en direct, édition nom + valeurs / 100 g, suppression de ligne
 - 🥗 Mini-base locale de ~110 aliments courants avec alias de recherche (accents, synonymes)
-- ➕ Ajout manuel avec suggestions de la base, ou saisie libre à compléter
+- ➕ Ajout manuel **intégré à l'écran d'ajout** (champ + suggestions de la base + « Saisie libre »), sans boîte de dialogue bloquante
 - 📊 Journal quotidien : total vs objectifs (calories, protéines, glucides, lipides), navigation entre les jours
 - 💾 SQLite local, réglages persistés (clé API, modèle, objectifs, profil)
 - ⚖️ **Profil & IMC** : taille, âge, sexe, activité et objectif de poids (maintien / perte / prise avec poids cible) ; calcul automatique des objectifs caloriques (métabolisme de base Mifflin-St Jeor × facteur d'activité, ajusté à l'objectif avec planchers de sécurité 1 200 / 1 500 kcal) et du poids idéal (formule de Devine)
@@ -60,7 +60,7 @@ lib/
     progression.dart          # ChangeNotifier : pesées, totaux 30 j, réglages
   screens/
     accueil_ecran.dart        # résumé + liste des repas + navigation jours + menu
-    ajout_repas_ecran.dart    # photo → IA → correction → enregistrement
+    ajout_repas_ecran.dart    # photo → IA → correction → enregistrement + ajout manuel inline
     progression_ecran.dart    # IMC, courbe de poids, apports 7/14/30 jours
     plan_ecran.dart           # objectifs globaux du jour vs réalisé (sans plats imposés)
     a_propos_ecran.dart       # écran « À propos » (version embarquée)
@@ -73,6 +73,8 @@ test/
   service_export_test.dart    # export CSV
   version_test.dart           # format de la version embarquée
   mini_base_test.dart         # intégrité de la mini-base
+  widget_accueil_test.dart    # tests widget : bouton menu (tiroir ☰ + popup ⋮) et navigation
+  widget_ajout_test.dart      # tests widget : ajout manuel inline (suggestion base / saisie libre)
 android/                       # coque Android versionnée (signature release configurée)
 .github/workflows/build-apk.yml  # CI : tests, APK signé, Release GitHub
 ```
