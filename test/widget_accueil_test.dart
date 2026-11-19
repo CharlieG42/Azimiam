@@ -33,13 +33,22 @@ void main() {
 
     await tester.tap(find.byIcon(Icons.menu));
     await tester.pumpAndSettle();
-    expect(find.text('Journal'), findsWidgets);
-    expect(find.text('Progression & IMC'), findsOneWidget);
-    expect(find.text('Plan nutritionnel'), findsOneWidget);
-    expect(find.text('À propos'), findsOneWidget);
-    expect(find.text('Réglages'), findsOneWidget);
+    final tiroir = find.byType(Drawer);
+    expect(find.descendant(of: tiroir, matching: find.text('Journal')),
+        findsOneWidget);
+    expect(
+        find.descendant(of: tiroir, matching: find.text('Progression & IMC')),
+        findsOneWidget);
+    expect(
+        find.descendant(of: tiroir, matching: find.text('Plan nutritionnel')),
+        findsOneWidget);
+    expect(find.descendant(of: tiroir, matching: find.text('À propos')),
+        findsOneWidget);
+    expect(find.descendant(of: tiroir, matching: find.text('Réglages')),
+        findsOneWidget);
 
-    await tester.tap(find.text('À propos'));
+    await tester.tap(
+        find.descendant(of: tiroir, matching: find.text('À propos')));
     await tester.pumpAndSettle();
     expect(find.byType(AProposEcran), findsOneWidget);
   });
@@ -50,7 +59,7 @@ void main() {
 
     await tester.tap(find.byIcon(Icons.more_vert));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Plan nutritionnel'));
+    await tester.tap(find.text('Plan nutritionnel').last);
     await tester.pumpAndSettle();
     expect(find.byType(PlanEcran), findsOneWidget);
   });
