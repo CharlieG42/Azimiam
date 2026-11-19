@@ -19,8 +19,8 @@ void main() {
   Widget pompe() {
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => Journal()..charger()),
-        ChangeNotifierProvider(create: (_) => Progression()..charger()),
+        ChangeNotifierProvider(create: (_) => Journal()),
+        ChangeNotifierProvider(create: (_) => Progression()),
       ],
       child: const MaterialApp(home: AccueilEcran()),
     );
