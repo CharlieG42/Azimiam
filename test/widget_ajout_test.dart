@@ -65,4 +65,19 @@ void main() {
     expect(find.byType(SnackBar), findsOneWidget);
     expect(find.byIcon(Icons.close), findsNothing);
   });
+
+  testWidgets('le bouton + de l\u2019AppBar atteint le panneau d\u2019ajout d\u2019aliment',
+      (tester) async {
+    await tester.pumpWidget(pompe());
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.add_circle_outline));
+    await tester.pumpAndSettle();
+
+    final champ = find.byKey(const Key('champSaisieAliment'));
+    expect(champ, findsOneWidget);
+    final textField = tester.widget<TextField>(champ);
+    expect(textField.focusNode?.hasFocus, isTrue);
+  });
 }
+

@@ -25,6 +25,9 @@ class AccueilEcran extends StatelessWidget {
     final titreJour = DateFormat('EEE d MMM', 'fr_FR').format(journal.jour);
 
     return Scaffold(
+      // Menu explicite : le bouton ☰ ouvre toujours le tiroir, sans dépendre
+      // de l'inférence automatique de l'AppBar (fragile selon les appareils).
+      drawerEnableOpenDragGesture: true,
       drawer: Drawer(
         child: ListView(
           padding: EdgeInsets.zero,
@@ -104,6 +107,13 @@ class AccueilEcran extends StatelessWidget {
           style: const TextStyle(fontSize: 17),
           overflow: TextOverflow.ellipsis,
         ),
+        leading: Builder(
+          builder: (context) => IconButton(
+            tooltip: 'Menu',
+            icon: const Icon(Icons.menu),
+            onPressed: () => Scaffold.of(context).openDrawer(),
+          ),
+        ),
         actions: [
           IconButton(
             tooltip: 'Jour précédent',
@@ -118,7 +128,7 @@ class AccueilEcran extends StatelessWidget {
                 journal.changerJour(journal.jour.add(const Duration(days: 1))),
           ),
           PopupMenuButton<String>(
-            tooltip: 'Menu',
+            tooltip: 'Plus d\u2019options',
             icon: const Icon(Icons.more_vert),
             onSelected: (valeur) {
               final nav = Navigator.of(context);
@@ -143,41 +153,51 @@ class AccueilEcran extends StatelessWidget {
                   break;
               }
             },
+            // Des lignes simples (pas de ListTile imbriqué) : chaque entrée
+            // réagit au toucher sur toute sa surface, sur tous les appareils.
             itemBuilder: (_) => const [
               PopupMenuItem(
                 value: 'aujourdhui',
-                child: ListTile(
-                  dense: true,
-                  contentPadding: EdgeInsets.zero,
-                  leading: Icon(Icons.today_outlined),
-                  title: Text('Aujourd\'hui'),
+                height: 48,
+                child: Row(
+                  children: [
+                    Icon(Icons.today_outlined),
+                    SizedBox(width: 12),
+                    Text('Aujourd\'hui'),
+                  ],
                 ),
               ),
               PopupMenuItem(
                 value: 'progression',
-                child: ListTile(
-                  dense: true,
-                  contentPadding: EdgeInsets.zero,
-                  leading: Icon(Icons.insights_outlined),
-                  title: Text('Progression & IMC'),
+                height: 48,
+                child: Row(
+                  children: [
+                    Icon(Icons.insights_outlined),
+                    SizedBox(width: 12),
+                    Text('Progression & IMC'),
+                  ],
                 ),
               ),
               PopupMenuItem(
                 value: 'plan',
-                child: ListTile(
-                  dense: true,
-                  contentPadding: EdgeInsets.zero,
-                  leading: Icon(Icons.calendar_month_outlined),
-                  title: Text('Plan nutritionnel'),
+                height: 48,
+                child: Row(
+                  children: [
+                    Icon(Icons.calendar_month_outlined),
+                    SizedBox(width: 12),
+                    Text('Plan nutritionnel'),
+                  ],
                 ),
               ),
               PopupMenuItem(
                 value: 'reglages',
-                child: ListTile(
-                  dense: true,
-                  contentPadding: EdgeInsets.zero,
-                  leading: Icon(Icons.settings_outlined),
-                  title: Text('Réglages'),
+                height: 48,
+                child: Row(
+                  children: [
+                    Icon(Icons.settings_outlined),
+                    SizedBox(width: 12),
+                    Text('Réglages'),
+                  ],
                 ),
               ),
             ],
@@ -214,6 +234,18 @@ class _Contenu extends StatelessWidget {
           _CarteResume(
             total: journal.total,
             reglages: journal.reglages,
+          ),
+          const SizedBox(height: 8),
+          // Bouton d'ajout toujours visible (au-delà du bouton flottant),
+          // pour que l'ajout d'un repas reste accessible à tout moment.
+          FilledButton.icon(
+            key: const Key('boutonAjouterRepas'),
+            icon: const Icon(Icons.add_a_photo_outlined),
+            label: const Text('Ajouter un repas'),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const AjoutRepasEcran()),
+            ),
           ),
           const SizedBox(height: 8),
           // Raccourcis visibles vers les vues de suivi et de plan.

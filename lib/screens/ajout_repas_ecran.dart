@@ -38,6 +38,8 @@ class _AjoutRepasEcranState extends State<AjoutRepasEcran> {
 
   final TextEditingController _saisieCtl = TextEditingController();
   final FocusNode _saisieFocus = FocusNode();
+  final ScrollController _defilement = ScrollController();
+  final GlobalKey _cleCarteAjout = GlobalKey();
   List<Aliment> _suggestions = [];
 
   @override
@@ -57,6 +59,7 @@ class _AjoutRepasEcranState extends State<AjoutRepasEcran> {
   void dispose() {
     _saisieCtl.dispose();
     _saisieFocus.dispose();
+    _defilement.dispose();
     super.dispose();
   }
 
@@ -234,6 +237,17 @@ class _AjoutRepasEcranState extends State<AjoutRepasEcran> {
   }
 
   void _focusSaisie() {
+    // Fait défiler jusqu'au panneau « Ajouter un aliment » puis ouvre le
+    // clavier : le panneau est toujours atteignable, même après l'ajout de
+    // plusieurs lignes (la photo peut le pousser hors de l'écran).
+    final contexteCarte = _cleCarteAjout.currentContext;
+    if (contexteCarte != null) {
+      Scrollable.ensureVisible(
+        contexteCarte,
+        duration: const Duration(milliseconds: 300),
+        alignment: 0.5,
+      );
+    }
     _saisieFocus.requestFocus();
   }
 
@@ -325,6 +339,7 @@ class _AjoutRepasEcranState extends State<AjoutRepasEcran> {
         ],
       ),
       body: SingleChildScrollView(
+        controller: _defilement,
         padding: const EdgeInsets.all(12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -439,6 +454,7 @@ class _AjoutRepasEcranState extends State<AjoutRepasEcran> {
               ),
 
             Card(
+              key: _cleCarteAjout,
               child: Padding(
                 padding: const EdgeInsets.all(12),
                 child: Column(
