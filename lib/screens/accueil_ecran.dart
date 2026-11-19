@@ -8,6 +8,7 @@ import '../models/repas.dart';
 import '../models/valeurs.dart';
 import '../services/service_reglages.dart';
 import '../state/journal.dart';
+import 'a_propos_ecran.dart';
 import 'ajout_repas_ecran.dart';
 import 'plan_ecran.dart';
 import 'progression_ecran.dart';
@@ -68,6 +69,17 @@ class AccueilEcran extends StatelessWidget {
                 Navigator.push(
                   context,
                   MaterialPageRoute(builder: (_) => const PlanEcran()),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.info_outline),
+              title: const Text('À propos'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const AProposEcran()),
                 );
               },
             ),

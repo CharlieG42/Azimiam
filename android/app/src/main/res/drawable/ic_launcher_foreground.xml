@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Même design que les mipmap PNG : assiette + fourchette/couteau blancs
+     sur fond transparent (le fond vert vient de ic_launcher_background).
+     Grille 108dp, zone sûre centrale ~66dp : le dessin tient dans 21..87. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- assiette : anneau (cercle extérieur + intérieur en even-odd) -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:fillType="evenOdd"
+        android:pathData="M32,54 a22,22 0 1,0 44,0 a22,22 0 1,0 -44,0 Z M40,54 a14,14 0 1,0 28,0 a14,14 0 1,0 -28,0 Z" />
+    <!-- fourchette (gauche) : 3 dents + col + manche -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M22,25 h2 v12 h-2 Z M25,25 h2 v12 h-2 Z M28,25 h2 v12 h-2 Z M22.5,37 h7 v6 h-7 Z M24.5,43 h4 v27 h-4 Z" />
+    <!-- couteau (droite) : lame + manche -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M78,26 h7 v18 l-7,6 Z M79.5,45 h4 v25 h-4 Z" />
+</vector>
