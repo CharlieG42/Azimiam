@@ -54,9 +54,9 @@ class AccueilEcran extends StatelessWidget {
               leading: const Icon(Icons.insights_outlined),
               title: const Text('Progression & IMC'),
               onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
+                final nav = Navigator.of(context);
+                nav.pop();
+                nav.push(
                   MaterialPageRoute(builder: (_) => const ProgressionEcran()),
                 );
               },
@@ -65,9 +65,9 @@ class AccueilEcran extends StatelessWidget {
               leading: const Icon(Icons.calendar_month_outlined),
               title: const Text('Plan nutritionnel'),
               onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
+                final nav = Navigator.of(context);
+                nav.pop();
+                nav.push(
                   MaterialPageRoute(builder: (_) => const PlanEcran()),
                 );
               },
@@ -76,9 +76,9 @@ class AccueilEcran extends StatelessWidget {
               leading: const Icon(Icons.info_outline),
               title: const Text('À propos'),
               onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
+                final nav = Navigator.of(context);
+                nav.pop();
+                nav.push(
                   MaterialPageRoute(builder: (_) => const AProposEcran()),
                 );
               },
@@ -88,9 +88,9 @@ class AccueilEcran extends StatelessWidget {
               leading: const Icon(Icons.settings_outlined),
               title: const Text('Réglages'),
               onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
+                final nav = Navigator.of(context);
+                nav.pop();
+                nav.push(
                   MaterialPageRoute(builder: (_) => const ReglagesEcran()),
                 );
               },
@@ -121,25 +121,23 @@ class AccueilEcran extends StatelessWidget {
             tooltip: 'Menu',
             icon: const Icon(Icons.more_vert),
             onSelected: (valeur) {
+              final nav = Navigator.of(context);
               switch (valeur) {
                 case 'aujourdhui':
                   journal.changerJour(DateTime.now());
                   break;
                 case 'progression':
-                  Navigator.push(
-                    context,
+                  nav.push(
                     MaterialPageRoute(builder: (_) => const ProgressionEcran()),
                   );
                   break;
                 case 'plan':
-                  Navigator.push(
-                    context,
+                  nav.push(
                     MaterialPageRoute(builder: (_) => const PlanEcran()),
                   );
                   break;
                 case 'reglages':
-                  Navigator.push(
-                    context,
+                  nav.push(
                     MaterialPageRoute(builder: (_) => const ReglagesEcran()),
                   );
                   break;

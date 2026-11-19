@@ -36,6 +36,10 @@ class _AjoutRepasEcranState extends State<AjoutRepasEcran> {
   String? _erreur;
   Reglages _reglages = const Reglages();
 
+  final TextEditingController _saisieCtl = TextEditingController();
+  final FocusNode _saisieFocus = FocusNode();
+  List<Aliment> _suggestions = [];
+
   @override
   void initState() {
     super.initState();
@@ -47,6 +51,13 @@ class _AjoutRepasEcranState extends State<AjoutRepasEcran> {
     if (mounted) {
       setState(() => _reglages = reglages);
     }
+  }
+
+  @override
+  void dispose() {
+    _saisieCtl.dispose();
+    _saisieFocus.dispose();
+    super.dispose();
   }
 
   // ---------------------------------------------------------------- Photo
@@ -222,121 +233,42 @@ class _AjoutRepasEcranState extends State<AjoutRepasEcran> {
     lipCtl.dispose();
   }
 
-  Future<void> _ajouterManuel() async {
-    try {
-      await _dialogueAjoutManuel();
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Ajout d\'aliment impossible : $e')),
-        );
-      }
-    }
+  void _focusSaisie() {
+    _saisieFocus.requestFocus();
   }
 
-  Future<void> _dialogueAjoutManuel() async {
-    final controleur = TextEditingController();
-    final resultat = await showDialog<Object>(
-      context: context,
-      builder: (context) {
-        var suggestions = <Aliment>[];
-        String? erreur;
-        return StatefulBuilder(
-          builder: (context, majEtat) => AlertDialog(
-            title: const Text('Ajouter un aliment'),
-            content: SizedBox(
-              width: double.maxFinite,
-              // Scrollable : le dialogue reste utilisable même avec le
-              // clavier ouvert sur un petit écran.
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    TextField(
-                      controller: controleur,
-                      autofocus: true,
-                      decoration: InputDecoration(
-                        hintText: 'Ex. : poulet, riz, pomme…',
-                        errorText: erreur,
-                      ),
-                      onChanged: (valeur) => majEtat(() {
-                        erreur = null;
-                        suggestions = ServiceNutrition.suggestions(valeur);
-                      }),
-                    ),
-                    const SizedBox(height: 12),
-                    if (suggestions.isEmpty)
-                      const Text(
-                        'Aucune suggestion : « Saisie libre » créera une ligne à compléter (valeurs / 100 g à la main).',
-                      )
-                    else
-                      ConstrainedBox(
-                        constraints: const BoxConstraints(maxHeight: 200),
-                        child: ListView.builder(
-                          shrinkWrap: true,
-                          itemCount: suggestions.length,
-                          itemBuilder: (_, i) {
-                            final aliment = suggestions[i];
-                            return ListTile(
-                              dense: true,
-                              title: Text(aliment.nom),
-                              subtitle: Text(
-                                  '${aliment.valeurs.kcal.round()} kcal / 100 g'),
-                              onTap: () => Navigator.pop(context, aliment),
-                            );
-                          },
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Annuler'),
-              ),
-              FilledButton(
-                // Toujours actif : si le champ est vide, on affiche une
-                // erreur dans le dialogue au lieu de fermer sans rien faire.
-                onPressed: () {
-                  final texte = controleur.text.trim();
-                  if (texte.isEmpty) {
-                    majEtat(() =>
-                        erreur = 'Saisissez d’abord un nom d’aliment.');
-                    return;
-                  }
-                  Navigator.pop(context, texte);
-                },
-                child: const Text('Saisie libre'),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-    controleur.dispose();
+  void _ajouterDepuisBase(Aliment aliment) {
+    setState(() {
+      _lignes.add(LigneRepas(
+        nom: aliment.nom,
+        grammes: 100,
+        pour100: aliment.valeurs,
+        source: 'base',
+      ));
+      _saisieCtl.clear();
+      _suggestions = [];
+    });
+  }
 
-    if (resultat is Aliment) {
-      setState(() {
-        _lignes.add(LigneRepas(
-          nom: resultat.nom,
-          grammes: 100,
-          pour100: resultat.valeurs,
-          source: 'base',
-        ));
-      });
-    } else if (resultat is String && resultat.isNotEmpty) {
-      setState(() {
-        _lignes.add(LigneRepas(
-          nom: resultat,
-          grammes: 100,
-          pour100: ValeursNutritionnelles.vide,
-          source: 'manuel',
-          reconnu: false,
-        ));
-      });
+  void _ajouterSaisieLibre() {
+    final texte = _saisieCtl.text.trim();
+    if (texte.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Saisissez d'abord un nom d'aliment.")),
+      );
+      return;
     }
+    setState(() {
+      _lignes.add(LigneRepas(
+        nom: texte,
+        grammes: 100,
+        pour100: ValeursNutritionnelles.vide,
+        source: 'manuel',
+        reconnu: false,
+      ));
+      _saisieCtl.clear();
+      _suggestions = [];
+    });
   }
 
   // ------------------------------------------------------------ Enregistrement
@@ -388,7 +320,7 @@ class _AjoutRepasEcranState extends State<AjoutRepasEcran> {
           IconButton(
             tooltip: 'Ajouter un aliment manuellement',
             icon: const Icon(Icons.add_circle_outline),
-            onPressed: _ajouterManuel,
+            onPressed: _focusSaisie,
           ),
         ],
       ),
@@ -506,10 +438,59 @@ class _AjoutRepasEcranState extends State<AjoutRepasEcran> {
                 ),
               ),
 
-            OutlinedButton.icon(
-              icon: const Icon(Icons.add),
-              label: const Text('Ajouter un aliment (base ou saisie libre)'),
-              onPressed: _ajouterManuel,
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      'Ajouter un aliment',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      key: const Key('champSaisieAliment'),
+                      controller: _saisieCtl,
+                      focusNode: _saisieFocus,
+                      decoration: const InputDecoration(
+                        prefixIcon: Icon(Icons.search),
+                        hintText: 'Ex. : poulet, riz, pomme…',
+                        border: OutlineInputBorder(),
+                      ),
+                      onChanged: (valeur) => setState(
+                          () => _suggestions = ServiceNutrition.suggestions(valeur)),
+                      onSubmitted: (_) => _ajouterSaisieLibre(),
+                    ),
+                    if (_suggestions.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(maxHeight: 180),
+                        child: ListView.builder(
+                          shrinkWrap: true,
+                          itemCount: _suggestions.length,
+                          itemBuilder: (_, i) {
+                            final aliment = _suggestions[i];
+                            return ListTile(
+                              dense: true,
+                              title: Text(aliment.nom),
+                              subtitle: Text(
+                                  '${aliment.valeurs.kcal.round()} kcal / 100 g'),
+                              onTap: () => _ajouterDepuisBase(aliment),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 8),
+                    FilledButton.icon(
+                      icon: const Icon(Icons.edit_note),
+                      label: const Text('Saisie libre (hors base)'),
+                      onPressed: _ajouterSaisieLibre,
+                    ),
+                  ],
+                ),
+              ),
             ),
             const SizedBox(height: 12),
 
