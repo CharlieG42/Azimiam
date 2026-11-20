@@ -3,12 +3,17 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:provider/provider.dart';
 
 import 'screens/accueil_ecran.dart';
+import 'services/affichage_erreurs.dart';
 import 'state/journal.dart';
 import 'state/progression.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('fr_FR');
+  // En mode release, Flutter remplace par défaut un sous-arbre qui plante
+  // par une boîte grise muette : impossible de savoir ce qui a échoué.
+  // On affiche plutôt l'erreur réelle pour diagnostiquer sur appareil réel.
+  AffichageErreurs.installer();
   runApp(const AzimiamApp());
 }
 
