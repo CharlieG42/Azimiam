@@ -153,52 +153,25 @@ class AccueilEcran extends StatelessWidget {
                   break;
               }
             },
-            // Des lignes simples (pas de ListTile imbriqué) : chaque entrée
-            // réagit au toucher sur toute sa surface, sur tous les appareils.
+            // Entrées texte simples (style standard du PopupMenu) : pas de
+            // mise en page personnalisée, donc aucun risque de débordement,
+            // et une zone tactile fiable sur toute la largeur de l'entrée.
             itemBuilder: (_) => const [
               PopupMenuItem(
                 value: 'aujourdhui',
-                height: 48,
-                child: Row(
-                  children: [
-                    Icon(Icons.today_outlined),
-                    SizedBox(width: 12),
-                    Text('Aujourd\'hui'),
-                  ],
-                ),
+                child: Text('Aujourd\'hui'),
               ),
               PopupMenuItem(
                 value: 'progression',
-                height: 48,
-                child: Row(
-                  children: [
-                    Icon(Icons.insights_outlined),
-                    SizedBox(width: 12),
-                    Text('Progression & IMC'),
-                  ],
-                ),
+                child: Text('Progression & IMC'),
               ),
               PopupMenuItem(
                 value: 'plan',
-                height: 48,
-                child: Row(
-                  children: [
-                    Icon(Icons.calendar_month_outlined),
-                    SizedBox(width: 12),
-                    Text('Plan nutritionnel'),
-                  ],
-                ),
+                child: Text('Plan nutritionnel'),
               ),
               PopupMenuItem(
                 value: 'reglages',
-                height: 48,
-                child: Row(
-                  children: [
-                    Icon(Icons.settings_outlined),
-                    SizedBox(width: 12),
-                    Text('Réglages'),
-                  ],
-                ),
+                child: Text('Réglages'),
               ),
             ],
           ),
