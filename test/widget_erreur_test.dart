@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:flutter/foundation.dart';
+
 import 'package:azimiam/services/affichage_erreurs.dart';
 
 void main() {
   testWidgets(
       'un widget qui plante affiche le message d\u2019erreur lisible en release',
       (tester) async {
+    final ancienBuilder = ErrorWidget.builder;
+    addTearDown(() => ErrorWidget.builder = ancienBuilder);
     AffichageErreurs.installer();
     await tester.pumpWidget(
       const MaterialApp(home: WidgetQuiPlante()),
