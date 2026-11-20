@@ -1,21 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+
 import 'package:azimiam/services/affichage_erreurs.dart';
 
 void main() {
-  testWidgets(
-      'un widget qui plante affiche le message d\u2019erreur lisible en release',
+  testWidgets('le rendu d\u2019erreur affiche un message lisible en release',
       (tester) async {
-    final ancienBuilder = ErrorWidget.builder;
-    addTearDown(() => ErrorWidget.builder = ancienBuilder);
-    AffichageErreurs.installer();
+    final details = FlutterErrorDetails(
+      exception: Exception('boom'),
+      library: 'test',
+    );
     await tester.pumpWidget(
-      const MaterialApp(home: WidgetQuiPlante()),
+      MaterialApp(home: Scaffold(body: AffichageErreurs.erreurLisible(details))),
     );
 
-    expect(tester.takeException(), isNotNull);
-    expect(find.byType(WidgetQuiPlante), findsOneWidget);
-    await tester.pump();
     expect(find.text('Erreur d\u2019affichage'), findsOneWidget);
     expect(find.textContaining('boom'), findsOneWidget);
     expect(
@@ -24,22 +22,13 @@ void main() {
       findsOneWidget,
     );
   });
-}
 
-class WidgetQuiPlante extends StatelessWidget {
-  const WidgetQuiPlante({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return const Column(children: [EnfantQuiPlante()]);
-  }
-}
-
-class EnfantQuiPlante extends StatelessWidget {
-  const EnfantQuiPlante({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    throw Exception('boom');
-  }
+  test('installer() remplace le builder d\u2019erreurs', () {
+    final ancien = ErrorWidget.builder;
+    addTearDown(() => ErrorWidget.builder = ancien);
+    AffichageErreurs.installer();
+    expect(identical(ErrorWidget.builder, AffichageErreurs.erreurLisible),
+        isTrue);
+    ErrorWidget.builder = ancien;
+  });
 }
