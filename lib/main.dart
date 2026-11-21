@@ -30,7 +30,7 @@ class AzimiamApp extends StatelessWidget {
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF2E7D32)),
       ),
-      // Sans ces délégués, \`supportedLocales\` limité au français fait
+      // Sans ces délégués, "supportedLocales" limité au français fait
       // échouer MaterialLocalizations.of() (null) et plante en release
       // tous les widgets Material qui en dépendent : TextField, Drawer…
       localizationsDelegates: const [
