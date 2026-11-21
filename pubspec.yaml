@@ -1,13 +1,15 @@
 name: azimiam
 description: Azimiam (WildZimut) - Compteur de calories et nutriments par photo de repas.
 publish_to: 'none'
-version: 0.3.2+5
+version: 0.3.3+6
 
 environment:
   sdk: '>=3.3.0 <4.0.0'
 
 dependencies:
   flutter:
+    sdk: flutter
+  flutter_localizations:
     sdk: flutter
   provider: ^6.1.0
   sqflite: ^2.3.0
@@ -25,4 +27,3 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
-
