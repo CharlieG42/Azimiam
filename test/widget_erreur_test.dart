@@ -9,6 +9,10 @@ void main() {
     final details = FlutterErrorDetails(
       exception: Exception('boom'),
       library: 'test',
+      stack: StackTrace.fromString(
+        '#0      AccueilEcran.build (package:azimiam/screens/accueil_ecran.dart:42:9)',
+      ),
+      informationCollector: () => [],
     );
     await tester.pumpWidget(
       MaterialApp(home: Scaffold(body: AffichageErreurs.erreurLisible(details))),
@@ -21,6 +25,7 @@ void main() {
           'Prenez une capture d\u2019écran de ce message pour le signaler.'),
       findsOneWidget,
     );
+    expect(find.textContaining('accueil_ecran.dart'), findsOneWidget);
   });
 
   test('installer() remplace le builder d\u2019erreurs', () {
