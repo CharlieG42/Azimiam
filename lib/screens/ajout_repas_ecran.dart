@@ -9,10 +9,13 @@ import 'package:provider/provider.dart';
 import '../data/mini_base.dart';
 import '../models/repas.dart';
 import '../models/valeurs.dart';
+import 'catalogue_ecran.dart';
 import '../services/service_ia.dart';
 import '../services/service_nutrition.dart';
 import '../services/service_reglages.dart';
 import '../state/journal.dart';
+import '../widgets/carte_ligne.dart';
+import '../widgets/dialog_ligne.dart';
 
 /// Écran d'ajout d'un repas : photo → analyse IA → correction → enregistrement.
 ///
@@ -129,7 +132,10 @@ class _AjoutRepasEcranState extends State<AjoutRepasEcran> {
     } on AiException catch (e) {
       setState(() => _erreur = 'Analyse IA échouée : ${e.message}');
     } catch (e) {
-      setState(() => _erreur = 'Analyse IA échouée : $e');
+      // Erreur réseau ou autre : message clair plutôt qu'une exception brute
+      // incompréhensible (« Failed host lookup errno = 7 »).
+      setState(
+          () => _erreur = ServiceIa.messageErreur(e, baseUrl: _reglages.baseUrl));
     }
     if (mounted) {
       setState(() => _enAnalyse = false);
@@ -143,97 +149,18 @@ class _AjoutRepasEcranState extends State<AjoutRepasEcran> {
   }
 
   Future<void> _editerLigne(int index) async {
-    final ligne = _lignes[index];
-    String fmt(double d) =>
-        d == d.roundToDouble() ? d.round().toString() : d.toStringAsFixed(1);
+    final modifiee = await editerLigneDialog(context, _lignes[index]);
+    if (modifiee && mounted) setState(() {});
+  }
 
-    final nomCtl = TextEditingController(text: ligne.nom);
-    final grammesCtl = TextEditingController(text: fmt(ligne.grammes));
-    final kcalCtl = TextEditingController(text: fmt(ligne.pour100.kcal));
-    final protCtl = TextEditingController(text: fmt(ligne.pour100.proteines));
-    final glucCtl = TextEditingController(text: fmt(ligne.pour100.glucides));
-    final lipCtl = TextEditingController(text: fmt(ligne.pour100.lipides));
-
-    final valide = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Modifier la ligne'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nomCtl,
-                decoration: const InputDecoration(labelText: 'Aliment'),
-              ),
-              TextField(
-                controller: grammesCtl,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: 'Quantité (g)'),
-              ),
-              TextField(
-                controller: kcalCtl,
-                keyboardType: TextInputType.number,
-                decoration:
-                    const InputDecoration(labelText: 'Calories / 100 g'),
-              ),
-              TextField(
-                controller: protCtl,
-                keyboardType: TextInputType.number,
-                decoration:
-                    const InputDecoration(labelText: 'Protéines / 100 g'),
-              ),
-              TextField(
-                controller: glucCtl,
-                keyboardType: TextInputType.number,
-                decoration:
-                    const InputDecoration(labelText: 'Glucides / 100 g'),
-              ),
-              TextField(
-                controller: lipCtl,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: 'Lipides / 100 g'),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Annuler'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Valider'),
-          ),
-        ],
-      ),
+  /// Ouvre le catalogue complet : l'aliment touché revient ici et est
+  /// ajouté au repas.
+  Future<void> _ouvrirCatalogue() async {
+    final aliment = await Navigator.push<Aliment>(
+      context,
+      MaterialPageRoute(builder: (_) => const CatalogueEcran()),
     );
-
-    if (valide == true) {
-      setState(() {
-        ligne.nom = nomCtl.text.trim().isEmpty ? ligne.nom : nomCtl.text.trim();
-        ligne.grammes = double.tryParse(grammesCtl.text.replaceAll(',', '.')) ??
-            ligne.grammes;
-        ligne.pour100 = ValeursNutritionnelles(
-          kcal: double.tryParse(kcalCtl.text.replaceAll(',', '.')) ??
-              ligne.pour100.kcal,
-          proteines: double.tryParse(protCtl.text.replaceAll(',', '.')) ??
-              ligne.pour100.proteines,
-          glucides: double.tryParse(glucCtl.text.replaceAll(',', '.')) ??
-              ligne.pour100.glucides,
-          lipides: double.tryParse(lipCtl.text.replaceAll(',', '.')) ??
-              ligne.pour100.lipides,
-        );
-        ligne.reconnu = true;
-      });
-    }
-    nomCtl.dispose();
-    grammesCtl.dispose();
-    kcalCtl.dispose();
-    protCtl.dispose();
-    glucCtl.dispose();
-    lipCtl.dispose();
+    if (aliment != null) _ajouterDepuisBase(aliment);
   }
 
   void _focusSaisie() {
@@ -444,7 +371,7 @@ class _AjoutRepasEcranState extends State<AjoutRepasEcran> {
             for (var i = 0; i < _lignes.length; i++)
               Padding(
                 padding: const EdgeInsets.only(bottom: 8),
-                child: _CarteLigne(
+                child: CarteLigne(
                   ligne: _lignes[i],
                   onGrammesModifies: (g) =>
                       setState(() => _lignes[i].grammes = g),
@@ -504,6 +431,13 @@ class _AjoutRepasEcranState extends State<AjoutRepasEcran> {
                       label: const Text('Saisie libre (hors base)'),
                       onPressed: _ajouterSaisieLibre,
                     ),
+                    const SizedBox(height: 8),
+                    OutlinedButton.icon(
+                      key: const Key('boutonCatalogue'),
+                      icon: const Icon(Icons.menu_book_outlined),
+                      label: const Text('Catalogue complet'),
+                      onPressed: _ouvrirCatalogue,
+                    ),
                   ],
                 ),
               ),
@@ -542,77 +476,6 @@ class _AjoutRepasEcranState extends State<AjoutRepasEcran> {
               onPressed: _lignes.isEmpty ? null : _enregistrer,
             ),
             const SizedBox(height: 24),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-String _fmt(double d) =>
-    d == d.roundToDouble() ? d.round().toString() : d.toStringAsFixed(1);
-
-/// Une ligne d'aliment éditable : quantité modifiable en direct, valeurs
-/// détaillées via la boîte de dialogue, suppression.
-class _CarteLigne extends StatelessWidget {
-  final LigneRepas ligne;
-  final ValueChanged<double> onGrammesModifies;
-  final VoidCallback onEditer;
-  final VoidCallback onSupprimer;
-
-  const _CarteLigne({
-    required this.ligne,
-    required this.onGrammesModifies,
-    required this.onEditer,
-    required this.onSupprimer,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-        child: Row(
-          children: [
-            Expanded(
-              child: ListTile(
-                contentPadding: EdgeInsets.zero,
-                title: Text(
-                  ligne.nom,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                subtitle: Text(
-                  '${ligne.pour100.kcal.round()} kcal / 100 g'
-                  '${ligne.reconnu ? '' : ' · hors base, à vérifier'}',
-                  style: ligne.reconnu
-                      ? null
-                      : TextStyle(color: Colors.orange.shade800),
-                ),
-                onTap: onEditer,
-              ),
-            ),
-            SizedBox(
-              width: 78,
-              child: TextFormField(
-                key: ObjectKey(ligne),
-                initialValue: _fmt(ligne.grammes),
-                keyboardType: TextInputType.number,
-                textAlign: TextAlign.right,
-                decoration: const InputDecoration(
-                  suffixText: 'g',
-                  isDense: true,
-                  border: InputBorder.none,
-                ),
-                onChanged: (valeur) => onGrammesModifies(
-                    double.tryParse(valeur.replaceAll(',', '.')) ?? 0),
-              ),
-            ),
-            IconButton(
-              icon: const Icon(Icons.close),
-              tooltip: 'Retirer',
-              onPressed: onSupprimer,
-            ),
           ],
         ),
       ),

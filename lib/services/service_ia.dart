@@ -182,4 +182,27 @@ Tu es un expert en nutrition. Analyse la photo de ce repas.
     }
     return 0;
   }
+
+  /// Traduit une erreur de l'appel IA en message compréhensible : les
+  /// exceptions réseau brutes (« Failed host lookup … errno = 7 ») n'ont
+  /// aucun sens pour l'utilisateur et ressemblent à un bug du modèle.
+  static String messageErreur(Object erreur, {String? baseUrl}) {
+    final texte = erreur.toString();
+    if (texte.contains('Failed host lookup') ||
+        texte.contains('SocketException') ||
+        texte.contains('Connection refused') ||
+        texte.contains('Connection timed out') ||
+        texte.contains('Network is unreachable') ||
+        texte.contains('Connection closed') ||
+        texte.contains('Software caused connection abort') ||
+        texte.contains('Failed to parse URL')) {
+      final hote = baseUrl ?? '';
+      return 'Pas de connexion à Internet : impossible de joindre '
+          '${hote.isEmpty ? 'l\'API Mistral' : hote}. '
+          'Vérifiez le réseau de votre téléphone (Wi-Fi, données mobiles, '
+          'DNS privé) puis réessayez. Ce n\'est pas un problème de modèle '
+          'ni de clé API.';
+    }
+    return 'Analyse IA échouée : $texte';
+  }
 }

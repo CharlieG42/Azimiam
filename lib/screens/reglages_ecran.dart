@@ -9,6 +9,21 @@ import '../state/journal.dart';
 import '../state/progression.dart';
 
 /// Réglages : clé API Mistral, modèle de vision, objectifs quotidiens.
+
+/// Modèles de vision testés avec l'application (reconnaissance d'aliments
+/// sur photo), du plus économique au plus précis. Tout autre modèle
+/// compatible chat completions reste utilisable en « saisie manuelle ».
+const Map<String, String> modelesVision = {
+  'pixtral-12b-2409': 'Pixtral 12B — défaut, spécialisé photo',
+  'ministral-8b-latest': 'Ministral 8B — le plus économique',
+  'mistral-small-latest': 'Mistral Small — rapide et économique',
+  'mistral-medium-latest': 'Mistral Medium — bon équilibre',
+  'mistral-large-latest': 'Mistral Large — le plus précis, plus lent',
+};
+
+/// Valeur sentinel du menu déroulant pour « autre modèle » (saisie manuelle).
+const String _modeleAutre = '\u00A0autre\u00A0';
+
 class ReglagesEcran extends StatefulWidget {
   const ReglagesEcran({super.key});
 
@@ -31,6 +46,8 @@ class _ReglagesEcranState extends State<ReglagesEcran> {
   String _sexe = 'f';
   String _activite = 'modere';
   String _objectif = 'maintien';
+  String _modeleMenu =
+      'pixtral-12b-2409'; // valeur du dropdown (sentinel = autre/personnalisé)
 
   bool _cleVisible = false;
   bool _initialise = false;
@@ -66,6 +83,9 @@ class _ReglagesEcranState extends State<ReglagesEcran> {
     _cleApiCtl.text = reglages.cleApi;
     _baseUrlCtl.text = reglages.baseUrl;
     _modeleCtl.text = reglages.modele;
+    _modeleMenu = modelesVision.containsKey(reglages.modele)
+        ? reglages.modele
+        : _modeleAutre;
     _kcalCtl.text = reglages.objectifKcal.round().toString();
     _protCtl.text = reglages.objectifProt.round().toString();
     _glucCtl.text = reglages.objectifGluc.round().toString();
@@ -236,11 +256,47 @@ class _ReglagesEcranState extends State<ReglagesEcran> {
                               ),
                             ),
                           ),
-                          TextField(
-                            controller: _modeleCtl,
+                          DropdownButtonFormField<String>(
+                            key: const Key('dropdownModeleIa'),
+                            value: _modeleMenu,
+                            isExpanded: true,
                             decoration: const InputDecoration(
-                                labelText: 'Modèle (ex. pixtral-12b-2409)'),
+                                labelText: 'Modèle d\'analyse photo'),
+                            items: [
+                              for (final entree in modelesVision.entries)
+                                DropdownMenuItem(
+                                  value: entree.key,
+                                  child: Text(entree.value),
+                                ),
+                              const DropdownMenuItem(
+                                value: _modeleAutre,
+                                child: Text(
+                                    'Autre modèle (saisie manuelle)'),
+                              ),
+                            ],
+                            onChanged: (valeur) => setState(() {
+                              _modeleMenu = valeur ?? _modeleAutre;
+                              if (valeur != null && valeur != _modeleAutre) {
+                                _modeleCtl.text = valeur;
+                              } else if (_modeleCtl.text.isNotEmpty &&
+                                  modelesVision
+                                      .containsKey(_modeleCtl.text)) {
+                                _modeleCtl.clear();
+                              }
+                            }),
                           ),
+                          if (_modeleMenu == _modeleAutre) ...[
+                            TextField(
+                              controller: _modeleCtl,
+                              decoration: const InputDecoration(
+                                labelText:
+                                    'Identifiant du modèle (ex. mistral-medium-3.5)',
+                                helperText:
+                                    'Tout modèle chat completions acceptant '
+                                    'les images peut être utilisé.',
+                              ),
+                            ),
+                          ],
                           TextField(
                             controller: _baseUrlCtl,
                             decoration: const InputDecoration(

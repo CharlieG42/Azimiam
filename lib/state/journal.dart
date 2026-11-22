@@ -48,6 +48,12 @@ class Journal extends ChangeNotifier {
     await charger();
   }
 
+  /// Met à jour un repas existant (type + lignes).
+  Future<void> modifier(Repas repas) async {
+    await _base.majRepas(repas);
+    await charger();
+  }
+
   Future<void> supprimer(int idRepas) async {
     await _base.supprimer(idRepas);
     await charger();

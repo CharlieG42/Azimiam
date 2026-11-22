@@ -10,9 +10,30 @@ import '../services/service_reglages.dart';
 import '../state/journal.dart';
 import 'a_propos_ecran.dart';
 import 'ajout_repas_ecran.dart';
+import 'modifier_repas_ecran.dart';
 import 'plan_ecran.dart';
 import 'progression_ecran.dart';
 import 'reglages_ecran.dart';
+
+/// Icône du groupe de repas sur l'accueil.
+IconData _iconeType(String type) {
+  switch (type) {
+    case 'Petit-déjeuner':
+      return Icons.emoji_food_beverage_outlined;
+    case 'Déjeuner':
+      return Icons.lunch_dining_outlined;
+    case 'Collation':
+      return Icons.icecream_outlined;
+    case 'Dîner':
+      return Icons.dinner_dining_outlined;
+  }
+  return Icons.restaurant_outlined;
+}
+
+/// Sous-total calorique des repas d'un type donné, pour l'en-tête du groupe.
+double _sousTotal(Journal journal, String type) => journal.repas
+    .where((r) => r.type == type)
+    .fold(0.0, (acc, repas) => acc + repas.total.kcal);
 
 /// Écran principal : résumé de la journée + liste des repas.
 class AccueilEcran extends StatelessWidget {
@@ -335,19 +356,78 @@ class _Contenu extends StatelessWidget {
                 ),
               ),
             )
-          else
-            ...journal.repas.map(
-              (repas) => Padding(
+          else ...[
+            // ----- Repas du jour, groupés par type -----
+            for (final type in typesRepas)
+              if (journal.repas.any((r) => r.type == type)) ...[
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(4, 8, 4, 4),
+                  child: Row(
+                    children: [
+                      Icon(_iconeType(type), size: 18,
+                          color: Colors.green.shade800),
+                      const SizedBox(width: 6),
+                      Text(
+                        type,
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.green.shade900,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: Text(
+                          '${_sousTotal(journal, type).round()} kcal'
+                          '${type != 'Dîner' ? '' : ''}',
+                          style:
+                              TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                ...journal.repas
+                    .where((r) => r.type == type)
+                    .map(
+                      (repas) => Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: _CarteRepas(
+                          repas: repas,
+                          estFavori: journal.estFavori(repas),
+                          onModifier: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  ModifierRepasEcran(repas: repas),
+                            ),
+                          ),
+                          onSupprimer: () => journal.supprimer(repas.id!),
+                          onBasculerFavori: () =>
+                              _basculerFavori(context, journal, repas),
+                        ),
+                      ),
+                    ),
+              ],
+            // Repas dont le type sortirait de la liste (données anciennes).
+            for (final repas in journal.repas
+                .where((r) => !typesRepas.contains(r.type)))
+              Padding(
                 padding: const EdgeInsets.only(bottom: 8),
                 child: _CarteRepas(
                   repas: repas,
                   estFavori: journal.estFavori(repas),
+                  onModifier: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => ModifierRepasEcran(repas: repas),
+                    ),
+                  ),
                   onSupprimer: () => journal.supprimer(repas.id!),
                   onBasculerFavori: () =>
                       _basculerFavori(context, journal, repas),
                 ),
               ),
-            ),
+          ],
         ],
       ),
     );
@@ -486,12 +566,14 @@ class _Macro extends StatelessWidget {
 class _CarteRepas extends StatelessWidget {
   final Repas repas;
   final bool estFavori;
+  final VoidCallback onModifier;
   final VoidCallback onSupprimer;
   final VoidCallback onBasculerFavori;
 
   const _CarteRepas({
     required this.repas,
     required this.estFavori,
+    required this.onModifier,
     required this.onSupprimer,
     required this.onBasculerFavori,
   });
@@ -533,6 +615,11 @@ class _CarteRepas extends StatelessWidget {
               Text(
                 '${repas.total.kcal.round()} kcal',
                 style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              IconButton(
+                tooltip: 'Modifier le repas',
+                icon: const Icon(Icons.edit_outlined),
+                onPressed: onModifier,
               ),
               IconButton(
                 tooltip: estFavori
