@@ -4,6 +4,8 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:azimiam/main.dart';
+import 'package:azimiam/screens/plan_ecran.dart';
+import 'package:azimiam/screens/progression_ecran.dart';
 
 /// Régression : l'app déclarait "supportedLocales: [Locale('fr', 'FR')]"
 /// sans les délégués de localisation, ce qui renvoyait "null" depuis
@@ -64,5 +66,48 @@ void main() {
     // Avant le correctif, ce TextField levait « Null check operator used
     // on a null value » dans _TextFieldState._getEffectiveDecoration.
     expect(find.byKey(const Key('champSaisieAliment')), findsOneWidget);
+  });
+
+  // Régression : MultiProvider était placé DANS home, sous le Navigator.
+  // ProgressionEcran et PlanEcran poussées depuis le tiroir sont des
+  // routes sœurs de home : elles ne trouvaient pas les providers et
+  // plantaient (« Provider<Progression> not found », « Provider<Journal>
+  // not found »). Les providers doivent envelopper MaterialApp.
+  testWidgets(
+      'le tiroir navigue vers Progression & IMC sans crash de provider',
+      (tester) async {
+    final ancien = ErrorWidget.builder;
+    addTearDown(() => ErrorWidget.builder = ancien);
+
+    await tester.pumpWidget(const AzimiamApp());
+    await pomper(tester);
+
+    await tester.tap(find.byIcon(Icons.menu));
+    await pomper(tester);
+    await tester.tap(find.descendant(
+        of: find.byType(Drawer), matching: find.text('Progression & IMC')));
+    await pomper(tester);
+
+    // L'écran poussé est bien rendu = le provider est résolu.
+    expect(find.byType(ProgressionEcran), findsOneWidget);
+  });
+
+  testWidgets(
+      'le tiroir navigue vers Plan nutritionnel sans crash de provider',
+      (tester) async {
+    final ancien = ErrorWidget.builder;
+    addTearDown(() => ErrorWidget.builder = ancien);
+
+    await tester.pumpWidget(const AzimiamApp());
+    await pomper(tester);
+
+    await tester.tap(find.byIcon(Icons.menu));
+    await pomper(tester);
+    await tester.tap(find.descendant(
+        of: find.byType(Drawer), matching: find.text('Plan nutritionnel')));
+    await pomper(tester);
+
+    // L'écran poussé est bien rendu = le provider est résolu.
+    expect(find.byType(PlanEcran), findsOneWidget);
   });
 }

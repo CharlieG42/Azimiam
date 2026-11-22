@@ -23,28 +23,32 @@ class AzimiamApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Azimiam',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF2E7D32)),
-      ),
-      // Sans ces délégués, "supportedLocales" limité au français fait
-      // échouer MaterialLocalizations.of() (null) et plante en release
-      // tous les widgets Material qui en dépendent : TextField, Drawer…
-      localizationsDelegates: const [
-        GlobalMaterialLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
+    // Les providers doivent être AU-DESSUS du Navigator (MaterialApp) :
+    // les écrans poussés depuis le tiroir ou le menu de l'accueil sont des
+    // routes sœurs de home, elles ne voient pas des providers placés dans
+    // home (crash Provider not found sur Progression et Plan).
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => Journal()..charger()),
+        ChangeNotifierProvider(create: (_) => Progression()..charger()),
       ],
-      supportedLocales: const [Locale('fr', 'FR')],
-      home: MultiProvider(
-        providers: [
-          ChangeNotifierProvider(create: (_) => Journal()..charger()),
-          ChangeNotifierProvider(create: (_) => Progression()..charger()),
+      child: MaterialApp(
+        title: 'Azimiam',
+        debugShowCheckedModeBanner: false,
+        theme: ThemeData(
+          useMaterial3: true,
+          colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF2E7D32)),
+        ),
+        // Sans ces délégués, supportedLocales limité au français fait
+        // échouer MaterialLocalizations.of() (null) et plante en release
+        // tous les widgets Material qui en dépendent : TextField, Drawer…
+        localizationsDelegates: const [
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
         ],
-        child: const AccueilEcran(),
+        supportedLocales: const [Locale('fr', 'FR')],
+        home: const AccueilEcran(),
       ),
     );
   }
