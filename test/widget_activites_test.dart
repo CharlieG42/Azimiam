@@ -146,7 +146,6 @@ void main() {
 
   testWidgets('le tiroir de l\'accueil ouvre l\'écran Activités',
       (tester) async {
-    final journal = Journal();
     await tester.pumpWidget(hote(Activites(), enfant: const AccueilEcran()));
     await tester.pumpAndSettle();
 
