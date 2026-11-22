@@ -1,0 +1,165 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:intl/date_symbol_data_local.dart';
+import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import 'package:azimiam/models/activite.dart';
+import 'package:azimiam/screens/accueil_ecran.dart';
+import 'package:azimiam/screens/activites_ecran.dart';
+import 'package:azimiam/state/activites.dart';
+import 'package:azimiam/state/journal.dart';
+import 'package:azimiam/state/progression.dart';
+
+void main() {
+  setUp(() async {
+    SharedPreferences.setMockInitialValues({});
+    await initializeDateFormatting('fr_FR');
+  });
+
+  ActiviteSport seance(
+    DateTime moment,
+    String type,
+    double duree,
+    double? km,
+    double? dplus,
+    int kcal,
+  ) =>
+      ActiviteSport(
+        moment: moment,
+        type: type,
+        dureeMin: duree,
+        distanceKm: km,
+        deniveleM: dplus,
+        kcal: kcal.toDouble(),
+      );
+
+  Widget hote(Activites activites, {Widget? enfant}) => MultiProvider(
+        providers: [
+          ChangeNotifierProvider<Journal>.value(value: Journal()),
+          ChangeNotifierProvider<Progression>.value(value: Progression()),
+          ChangeNotifierProvider<Activites>.value(value: activites),
+        ],
+        child: MaterialApp(home: enfant ?? const ActivitesEcran()),
+      );
+
+  testWidgets('historique vide : message explicite', (tester) async {
+    await tester.pumpWidget(hote(Activites()));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Aucune activité déclarée'), findsOneWidget);
+    expect(find.text('Déclarer une activité'), findsOneWidget);
+  });
+
+  testWidgets('résumé 7 jours + séances groupées par jour', (tester) async {
+    tester.view.physicalSize = const Size(800, 2400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final maintenant = DateTime.now();
+    final activites = Activites();
+    activites.liste = [
+      seance(maintenant.subtract(const Duration(hours: 3)), 'marche',
+          45, 10.2, 150, 234),
+      seance(maintenant.subtract(const Duration(days: 1)), 'course',
+          60, 12, 250, 880),
+      // Hors fenêtre 7 jours : présente dans l'historique, pas dans le
+      // résumé de semaine.
+      seance(maintenant.subtract(const Duration(days: 30)), 'course',
+          60, 8, null, 900),
+    ];
+
+    await tester.pumpWidget(hote(activites));
+    await tester.pumpAndSettle();
+
+    // Résumé : les deux séances récentes, pas l'ancienne.
+    expect(find.text('1114 kcal'), findsOneWidget);
+    expect(find.text('2 séances · 1 h 45 · 22.2 km'), findsOneWidget);
+
+    // Les trois séances sont dans l'historique, avec leurs calories.
+    expect(find.text('Marche'), findsOneWidget);
+    expect(find.text('234 kcal'), findsOneWidget);
+    expect(find.text('880 kcal'), findsOneWidget);
+    expect(find.text('900 kcal'), findsOneWidget);
+    // Détail de la marche : durée, distance, dénivelé.
+    expect(find.text('45 min · 10.2 km · D+ 150 m'), findsOneWidget);
+  });
+
+  testWidgets('déclarer : calories calculées en direct depuis la saisie',
+      (tester) async {
+    final activites = Activites();
+    await tester.pumpWidget(hote(activites));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Déclarer une activité'));
+    await tester.pumpAndSettle();
+
+    // Type par défaut = Marche (premier du catalogue), avec distance et
+    // dénivelé proposés.
+    expect(find.text('Distance (km, optionnel)'), findsOneWidget);
+    expect(find.text('Dénivelé positif (m, optionnel)'), findsOneWidget);
+
+    // Aucune pesée dans le profil de test : estimation sur 70 kg.
+    expect(find.textContaining('estimé sur 70 kg'), findsOneWidget);
+
+    // Durée saisie -> calories recalculées (3,5 x 70 x 0,5 h = 122,5).
+    await tester.enterText(find.byType(TextField).at(0), '30');
+    await tester.pump();
+    expect(find.text('123'), findsOneWidget);
+  });
+
+  testWidgets('déclarer : type sans distance ni dénivelé, saisie manuelle'
+      ' puis retour au calcul', (tester) async {
+    final activites = Activites();
+    await tester.pumpWidget(hote(activites));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Déclarer une activité'));
+    await tester.pumpAndSettle();
+
+    // Changer de type : Natation (pas de distance, pas de dénivelé).
+    await tester.tap(find.byKey(const Key('dropdownTypeActivite')));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Natation').last);
+    await tester.tap(find.text('Natation').last);
+    await tester.pumpAndSettle();
+    expect(find.text('Distance (km, optionnel)'), findsNothing);
+    expect(find.text('Dénivelé positif (m, optionnel)'), findsNothing);
+
+    await tester.enterText(find.byType(TextField).at(0), '30');
+    await tester.pump();
+    // 7 x 70 x 0,5 = 245.
+    expect(find.text('245'), findsOneWidget);
+
+    // Saisie manuelle : fige la valeur et masque l'aperçu de calcul.
+    await tester.enterText(
+        find.widgetWithText(TextField, 'Calories dépensées (kcal)'), '999');
+    await tester.pump();
+    expect(find.text('999'), findsOneWidget);
+    expect(find.textContaining('estimé sur 70 kg'), findsNothing);
+
+    // « Calcul automatique » : retour à la valeur calculée.
+    await tester.tap(find.text('Calcul automatique'));
+    await tester.pump();
+    expect(find.text('245'), findsOneWidget);
+    expect(find.textContaining('estimé sur 70 kg'), findsOneWidget);
+  });
+
+  testWidgets('le tiroir de l\'accueil ouvre l\'écran Activités',
+      (tester) async {
+    final journal = Journal();
+    await tester.pumpWidget(hote(Activites(), enfant: const AccueilEcran()));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('Menu'));
+    await tester.pumpAndSettle();
+    // Le corps de l'accueil a aussi un chip « Activités » : viser
+    // l'entrée du tiroir précisément.
+    await tester.tap(find.descendant(
+      of: find.byType(Drawer),
+      matching: find.text('Activités'),
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Aucune activité déclarée'), findsOneWidget);
+  });
+}
