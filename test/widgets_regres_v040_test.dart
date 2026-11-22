@@ -1,0 +1,154 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:intl/date_symbol_data_local.dart';
+import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import 'package:azimiam/screens/accueil_ecran.dart';
+import 'package:azimiam/screens/catalogue_ecran.dart';
+import 'package:azimiam/screens/modifier_repas_ecran.dart';
+import 'package:azimiam/screens/reglages_ecran.dart';
+import 'package:azimiam/models/repas.dart';
+import 'package:azimiam/models/valeurs.dart';
+import 'package:azimiam/state/journal.dart';
+import 'package:azimiam/state/progression.dart';
+
+void main() {
+  setUp(() async {
+    SharedPreferences.setMockInitialValues({});
+    await initializeDateFormatting('fr_FR');
+  });
+
+  LigneRepas ligne(String nom, int kcal) => LigneRepas(
+        nom: nom,
+        grammes: 100,
+        pour100: ValeursNutritionnelles(
+            kcal: kcal.toDouble(), proteines: 5, glucides: 10, lipides: 2),
+      );
+
+  testWidgets('les repas sont groupés par type avec sous-totaux',
+      (tester) async {
+    final journal = Journal();
+    journal.repas = [
+      Repas(
+        prisLe: DateTime(2026, 11, 22, 8),
+        type: 'Petit-déjeuner',
+        lignes: [ligne('Pain', 250)],
+      ),
+      Repas(
+        prisLe: DateTime(2026, 11, 22, 13),
+        type: 'Déjeuner',
+        lignes: [ligne('Poulet grillé', 165)],
+      ),
+      Repas(
+        prisLe: DateTime(2026, 11, 22, 9),
+        type: 'Petit-déjeuner',
+        lignes: [ligne('Thé', 5)],
+      ),
+    ];
+
+    await tester.pumpWidget(MultiProvider(
+      providers: [
+        ChangeNotifierProvider.value(value: journal),
+        ChangeNotifierProvider(create: (_) => Progression()),
+      ],
+      child: const MaterialApp(home: AccueilEcran()),
+    ));
+    await tester.pumpAndSettle();
+
+    // En-têtes des groupes présents, dans l'ordre d'une journée.
+    expect(find.text('Petit-déjeuner'), findsWidgets);
+    expect(find.text('Déjeuner'), findsWidgets);
+    expect(find.textContaining('255 kcal'), findsOneWidget);
+
+    // L'icône de modification est présente sur chaque carte repas.
+    expect(find.byIcon(Icons.edit_outlined), findsNWidgets(3));
+  });
+
+  testWidgets('le bouton modifier ouvre l\'écran de modification du repas',
+      (tester) async {
+    final journal = Journal();
+    journal.repas = [
+      Repas(
+        prisLe: DateTime(2026, 11, 22, 13),
+        type: 'Déjeuner',
+        lignes: [ligne('Poulet grillé', 165)],
+      ),
+    ];
+
+    await tester.pumpWidget(MultiProvider(
+      providers: [
+        ChangeNotifierProvider.value(value: journal),
+        ChangeNotifierProvider(create: (_) => Progression()),
+      ],
+      child: const MaterialApp(home: AccueilEcran()),
+    ));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.edit_outlined).first);
+    await tester.pumpAndSettle();
+
+    expect(find.byType(ModifierRepasEcran), findsOneWidget);
+    expect(find.text('Poulet grillé'), findsOneWidget);
+    expect(find.text('Enregistrer les modifications'), findsOneWidget);
+
+    // Changer de type et vérifier le total recalculé s'affiche.
+    await tester.tap(find.text('Collation'));
+    await tester.pumpAndSettle();
+    expect(find.byIcon(Icons.check), findsOneWidget);
+  });
+
+  testWidgets('le catalogue ouvre depuis l\'ajout et renvoie l\'aliment choisi',
+      (tester) async {
+    final journal = Journal();
+    await tester.pumpWidget(ChangeNotifierProvider.value(
+      value: journal,
+      child: const MaterialApp(home: CatalogueEcran()),
+    ));
+    await tester.pumpAndSettle();
+
+    // Liste alphabétique, recherche instantanée.
+    expect(find.byIcon(Icons.restaurant_outlined), findsWidgets);
+
+    // Recherche insensible aux accents : « cotelette » → « Côtelette d'agneau ».
+    await tester.enterText(
+        find.byKey(const Key('champRechercheCatalogue')), 'cotelette');
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Côtelette'), findsOneWidget);
+
+    await tester.enterText(
+        find.byKey(const Key('champRechercheCatalogue')), 'pomme de terre');
+    await tester.pumpAndSettle();
+    await tester.tap(find.textContaining('Pomme de terre').first);
+    await tester.pumpAndSettle();
+    // L'aliment est pop-é : l'écran catalogue est fermé.
+    expect(find.byType(CatalogueEcran), findsNothing);
+  });
+
+  testWidgets('réglages : le modèle d\'analyse photo est un menu déroulant',
+      (tester) async {
+    await tester.pumpWidget(MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => Journal()),
+        ChangeNotifierProvider(create: (_) => Progression()),
+      ],
+      child: const MaterialApp(home: ReglagesEcran()),
+    ));
+    await tester.pumpAndSettle();
+
+    // Le dropdown remplace l'ancien champ texte libre.
+    expect(find.byKey(const Key('dropdownModeleIa')), findsOneWidget);
+    expect(find.textContaining('Pixtral 12B'), findsOneWidget);
+    // Saisie manuelle cachée tant qu'un modèle connu est choisi.
+    expect(find.textContaining('Identifiant du modèle'), findsNothing);
+
+    // « Autre modèle » fait apparaître le champ de saisie libre.
+    await tester.tap(find.byKey(const Key('dropdownModeleIa')));
+    await tester.pumpAndSettle();
+    await tester.tap(find
+        .text('Autre modèle (saisie manuelle)')
+        .last);
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Identifiant du modèle'), findsOneWidget);
+  });
+}
