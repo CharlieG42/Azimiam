@@ -28,8 +28,9 @@ flowchart LR
 - ⚖️ **Profil & IMC** : taille, âge, sexe, activité et objectif de poids (maintien / perte / prise avec poids cible) ; calcul automatique des objectifs caloriques (métabolisme de base Mifflin-St Jeor × facteur d'activité, ajusté à l'objectif avec planchers de sécurité 1 200 / 1 500 kcal) et du poids idéal (formule de Devine)
 - 📈 **Suivi des progressions** : pesées historisées (une par jour, SQLite), courbe de poids, catégorie IMC (OMS), progression vers le poids cible (% parcouru, durée estimée à ~7 700 kcal/kg), moyennes d'apports 7/30 jours et graphique des calories des 14 derniers jours vs objectif (dessiné nativement, sans dépendance graphique)
 - 📅 **Plan nutritionnel** : fixe les **objectifs globaux** de la journée (kcal, protéines, glucides, lipides) et affiche la progression réelle du jour (réalisé / objectif / reste) — **sans imposer de plats précis**
-- ⭐ Favoris & repas récurrents (« recopier le déjeuner d'hier ») : étoile sur la carte du repas, section « Repas fréquents » sur l'accueil, recréation en un appui (table SQLite `favoris`)
-- 📤 Export CSV du journal et des pesées (dossier `Téléchargements/Azimiam`)
+- 🏃 **Activités sportives** : déclaration d'une séance (type parmi 16, date et heure, durée, distance et dénivelé positif le cas échéant), **calories dépensées calculées automatiquement** (MET du type ajusté à la vitesse pour la course et le vélo, travail de montée ajouté au dénivelé, sur la base de la dernière pesée) ou saisies à la main ; historique groupé par jour, résumé des 7 derniers jours (séances, durée, km, kcal)
+- ⭐ Favoris & repas récurrents (« recopier le déjeuner d'hier ») : étoile sur la carte du repas, section « Repas fréquents » sur l'accueil, recréation en un appui (table SQLite `favoris`) ; catalogue d'aliments avec recherche instantanée insensible aux accents
+- 📤 Export CSV du journal, des pesées et des activités sportives (dossier `Téléchargements/Azimiam`)
 - ℹ️ Menu « À propos » : version embarquée telle que définie dans le `pubspec.yaml` (ex. `0.2.0-pr8+25` en PR, `0.2.0+25` sur main), principe de l'app et avertissement
 - 🎨 Icône d'app dédiée (assiette + couverts sur fond vert) : PNG mipmap 48→192 px + icône adaptative vectorielle (Android 8+)
 - 🖼️ Photo du repas archivée dans l'app et affichée dans le journal
@@ -46,6 +47,7 @@ lib/
     profil.dart               # Profil : taille, âge, sexe, activité, objectif
     progression.dart          # Pesee, TotalJour
     favori.dart               # FavoriRepas : snapshot JSON + empreinte
+    activite.dart            # ActiviteSport : type, durée, distance, dénivelé, kcal
   data/
     mini_base.dart            # ~110 aliments, valeurs / 100 g (approx. CIQUAL)
   services/
@@ -54,15 +56,18 @@ lib/
     service_imc.dart          # IMC (OMS), Mifflin-St Jeor, objectifs auto (testé)
     service_base.dart         # SQLite : repas, lignes, pesées, totaux/jour
     service_reglages.dart     # SharedPreferences : clé API, objectifs, profil
-    service_export.dart       # export CSV du journal + pesées (testé)
+    service_export.dart       # export CSV du journal + pesées + activités (testé)
+    service_activites.dart    # catalogue de types + calcul kcal MET/vitesse/dénivelé (testé)
   state/
     journal.dart              # ChangeNotifier : journée, totaux, erreurs
     progression.dart          # ChangeNotifier : pesées, totaux 30 j, réglages
+    activites.dart            # ChangeNotifier : séances sportives, totaux 7 j
   screens/
     accueil_ecran.dart        # résumé + liste des repas + navigation jours + menu
     ajout_repas_ecran.dart    # photo → IA → correction → enregistrement + ajout manuel inline
     progression_ecran.dart    # IMC, courbe de poids, apports 7/14/30 jours
     plan_ecran.dart           # objectifs globaux du jour vs réalisé (sans plats imposés)
+    activites_ecran.dart      # déclaration des activités sportives + historique
     a_propos_ecran.dart       # écran « À propos » (version embarquée)
     reglages_ecran.dart       # clé API, modèle, profil, objectifs (+ calcul auto)
 test/
@@ -75,6 +80,8 @@ test/
   mini_base_test.dart         # intégrité de la mini-base
   widget_accueil_test.dart    # tests widget : bouton menu (tiroir ☰ + popup ⋮) et navigation
   widget_ajout_test.dart      # tests widget : ajout manuel inline (suggestion base / saisie libre)
+  service_activites_test.dart # calculs kcal : MET, vitesse, dénivelé, catalogue
+  widget_activites_test.dart  # tests widget : écran Activités + dialogue de déclaration
 android/                       # coque Android versionnée (signature release configurée)
 .github/workflows/build-apk.yml  # CI : tests, APK signé, Release GitHub
 ```

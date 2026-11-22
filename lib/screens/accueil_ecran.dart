@@ -9,6 +9,7 @@ import '../models/valeurs.dart';
 import '../services/service_reglages.dart';
 import '../state/journal.dart';
 import 'a_propos_ecran.dart';
+import 'activites_ecran.dart';
 import 'ajout_repas_ecran.dart';
 import 'modifier_repas_ecran.dart';
 import 'plan_ecran.dart';
@@ -82,6 +83,17 @@ class AccueilEcran extends StatelessWidget {
                 nav.pop();
                 nav.push(
                   MaterialPageRoute(builder: (_) => const ProgressionEcran()),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.directions_run),
+              title: const Text('Activités'),
+              onTap: () {
+                final nav = Navigator.of(context);
+                nav.pop();
+                nav.push(
+                  MaterialPageRoute(builder: (_) => const ActivitesEcran()),
                 );
               },
             ),
@@ -252,6 +264,14 @@ class _Contenu extends StatelessWidget {
                 onPressed: () => Navigator.push(
                   context,
                   MaterialPageRoute(builder: (_) => const ProgressionEcran()),
+                ),
+              ),
+              ActionChip(
+                avatar: const Icon(Icons.directions_run, size: 18),
+                label: const Text('Activités'),
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const ActivitesEcran()),
                 ),
               ),
               ActionChip(

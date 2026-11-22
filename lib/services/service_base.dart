@@ -4,6 +4,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
 
+import '../models/activite.dart';
 import '../models/favori.dart';
 import '../models/progression.dart';
 import '../models/repas.dart';
@@ -23,7 +24,7 @@ class ServiceBase {
     final dossier = await getApplicationDocumentsDirectory();
     return openDatabase(
       p.join(dossier.path, 'azimiam.db'),
-      version: 3,
+      version: 4,
       onCreate: (db, version) async {
         await _creerTables(db);
       },
@@ -45,6 +46,19 @@ class ServiceBase {
               type TEXT NOT NULL,
               cree_le TEXT NOT NULL,
               lignes TEXT NOT NULL
+            )
+          ''');
+        }
+        if (oldVersion < 4) {
+          await db.execute('''
+            CREATE TABLE IF NOT EXISTS activites(
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              moment TEXT NOT NULL,
+              type TEXT NOT NULL,
+              duree_min REAL NOT NULL,
+              distance_km REAL,
+              denivele_m REAL,
+              kcal REAL NOT NULL
             )
           ''');
         }
@@ -88,6 +102,17 @@ class ServiceBase {
         type TEXT NOT NULL,
         cree_le TEXT NOT NULL,
         lignes TEXT NOT NULL
+      )
+    ''');
+    await db.execute('''
+      CREATE TABLE activites(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        moment TEXT NOT NULL,
+        type TEXT NOT NULL,
+        duree_min REAL NOT NULL,
+        distance_km REAL,
+        denivele_m REAL,
+        kcal REAL NOT NULL
       )
     ''');
   }
@@ -282,6 +307,47 @@ class ServiceBase {
         .toList();
   }
 
+  // ----------------------------------------------------------- Activités
+
+  /// Enregistre une activité sportive et renvoie son id.
+  Future<int> enregistrerActivite(ActiviteSport activite) async {
+    final db = await base;
+    return db.insert('activites', {
+      'moment': cleInstant(activite.moment),
+      'type': activite.type,
+      'duree_min': activite.dureeMin,
+      'distance_km': activite.distanceKm,
+      'denivele_m': activite.deniveleM,
+      'kcal': activite.kcal,
+    });
+  }
+
+  /// Toutes les activités, de la plus récente à la plus ancienne.
+  Future<List<ActiviteSport>> listeActivites() async {
+    final db = await base;
+    final lignes =
+        await db.query('activites', orderBy: 'moment DESC, id DESC');
+    return lignes
+        .map((l) => ActiviteSport(
+              id: l['id'] as int,
+              moment: DateTime.parse(l['moment'] as String),
+              type: l['type'] as String,
+              dureeMin: (l['duree_min'] as num).toDouble(),
+              distanceKm: (l['distance_km'] as num?)?.toDouble(),
+              deniveleM: (l['denivele_m'] as num?)?.toDouble(),
+              kcal: (l['kcal'] as num).toDouble(),
+            ))
+        .toList();
+  }
+
+  Future<void> supprimerActivite(int id) async {
+    final db = await base;
+    await db.delete('activites', where: 'id = ?', whereArgs: [id]);
+  }
+
+  /// Toutes les activités (tous jours), pour l'export CSV.
+  Future<List<ActiviteSport>> toutesLesActivites() => listeActivites();
+
   // ------------------------------------------------------------ Favoris
 
   /// Enregistre un favori (snapshot JSON des lignes). Renvoie l'id.
@@ -323,6 +389,7 @@ class ServiceBase {
     final csv = ServiceExport.toCsv(
       repas: await tousLesRepas(),
       pesees: await historiquePesees(),
+      activites: await toutesLesActivites(),
     );
     final telechargements = await getDownloadsDirectory();
     final racine = telechargements?.path ??
