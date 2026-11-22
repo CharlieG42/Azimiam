@@ -28,6 +28,12 @@ void main() {
 
   testWidgets('les repas sont groupés par type avec sous-totaux',
       (tester) async {
+    // Viewport haut : la liste est bâtie paresseusement (SliverList), les
+    // groupes du bas ne sont instanciés que s'ils entrent dans l'écran.
+    tester.view.physicalSize = const Size(800, 2400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
     final journal = Journal();
     journal.repas = [
       Repas(
@@ -98,17 +104,31 @@ void main() {
     expect(find.byIcon(Icons.check), findsOneWidget);
   });
 
-  testWidgets('le catalogue ouvre depuis l\'ajout et renvoie l\'aliment choisi',
+  testWidgets('le catalogue recherche et renvoie l\'aliment choisi',
       (tester) async {
-    final journal = Journal();
-    await tester.pumpWidget(ChangeNotifierProvider.value(
-      value: journal,
-      child: const MaterialApp(home: CatalogueEcran()),
+    // Le catalogue est poussé comme une vraie route : son « pop avec
+    // résultat » doit refermer l'écran (impossible depuis la route racine).
+    await tester.pumpWidget(MaterialApp(
+      home: Builder(
+        builder: (context) => Scaffold(
+          body: Center(
+            child: FilledButton(
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const CatalogueEcran(),
+                ),
+              ),
+              child: const Text('ouvrir catalogue'),
+            ),
+          ),
+        ),
+      ),
     ));
     await tester.pumpAndSettle();
-
-    // Liste alphabétique, recherche instantanée.
-    expect(find.byIcon(Icons.restaurant_outlined), findsWidgets);
+    await tester.tap(find.text('ouvrir catalogue'));
+    await tester.pumpAndSettle();
+    expect(find.byType(CatalogueEcran), findsOneWidget);
 
     // Recherche insensible aux accents : « cotelette » → « Côtelette d'agneau ».
     await tester.enterText(
@@ -119,9 +139,11 @@ void main() {
     await tester.enterText(
         find.byKey(const Key('champRechercheCatalogue')), 'pomme de terre');
     await tester.pumpAndSettle();
-    await tester.tap(find.textContaining('Pomme de terre').first);
+    // L'alias « pomme de terre » retrouve la fiche « Pommes de terre cuites ».
+    expect(find.text('Pommes de terre cuites'), findsOneWidget);
+    await tester.tap(find.text('Pommes de terre cuites'));
     await tester.pumpAndSettle();
-    // L'aliment est pop-é : l'écran catalogue est fermé.
+    // L'aliment est pop-é : le catalogue est fermé.
     expect(find.byType(CatalogueEcran), findsNothing);
   });
 
@@ -145,9 +167,10 @@ void main() {
     // « Autre modèle » fait apparaître le champ de saisie libre.
     await tester.tap(find.byKey(const Key('dropdownModeleIa')));
     await tester.pumpAndSettle();
-    await tester.tap(find
-        .text('Autre modèle (saisie manuelle)')
-        .last);
+    final itemAutre = find.text('Autre modèle (saisie manuelle)').last;
+    await tester.ensureVisible(itemAutre);
+    await tester.pumpAndSettle();
+    await tester.tap(itemAutre);
     await tester.pumpAndSettle();
     expect(find.textContaining('Identifiant du modèle'), findsOneWidget);
   });
