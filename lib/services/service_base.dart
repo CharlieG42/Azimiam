@@ -125,6 +125,33 @@ class ServiceBase {
     return id;
   }
 
+  /// Met à jour un repas existant (type + lignes). L'heure et la photo ne
+  /// changent pas : les lignes sont simplement remplacées.
+  Future<void> majRepas(Repas repas) async {
+    final db = await base;
+    final id = repas.id;
+    if (id == null) return;
+    await db.update(
+      'repas',
+      {'type': repas.type},
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+    await db.delete('lignes', where: 'repas_id = ?', whereArgs: [id]);
+    for (final ligne in repas.lignes) {
+      await db.insert('lignes', {
+        'repas_id': id,
+        'nom': ligne.nom,
+        'grammes': ligne.grammes,
+        'kcal100': ligne.pour100.kcal,
+        'prot100': ligne.pour100.proteines,
+        'gluc100': ligne.pour100.glucides,
+        'lip100': ligne.pour100.lipides,
+        'source': ligne.source,
+      });
+    }
+  }
+
   /// Tous les repas d'une journée, par ordre chronologique.
   Future<List<Repas>> repasDuJour(DateTime jour) async {
     final db = await base;

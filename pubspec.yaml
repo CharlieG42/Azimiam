@@ -1,7 +1,7 @@
 name: azimiam
 description: Azimiam (WildZimut) - Compteur de calories et nutriments par photo de repas.
 publish_to: 'none'
-version: 0.3.4+7
+version: 0.4.0+8
 
 environment:
   sdk: '>=3.3.0 <4.0.0'
