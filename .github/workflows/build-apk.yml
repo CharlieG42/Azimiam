@@ -120,6 +120,28 @@ jobs:
           set -o pipefail
           flutter build apk --release 2>&1 | tee build.log
 
+      # Anti-régression v0.5.1 : l'APK release DOIT avoir la permission
+      # INTERNET (bug v0.5.0 : permission seulement dans le manifest debug
+      # → « Pas de connexion à Internet » sur tout réseau, analyse photo
+      # impossible en release). aapt vient des build-tools du SDK Android
+      # préinstallés sur l'image ubuntu ; si l'outil manque, on saute la
+      # vérification sans faire échouer le build.
+      - name: Vérifier la permission INTERNET dans l'APK
+        run: |
+          AAPT=$(ls /usr/local/lib/android/sdk/build-tools/*/aapt 2>/dev/null | sort -V | tail -1)
+          if [ -z "$AAPT" ]; then
+            echo "::warning::aapt introuvable dans les build-tools, vérification de la permission INTERNET sautée"
+            exit 0
+          fi
+          APK=$(ls build/app/outputs/flutter-apk/*.apk | head -1)
+          echo "Vérification de $APK avec $AAPT"
+          "$AAPT" dump permissions "$APK"
+          "$AAPT" dump permissions "$APK" | grep -q "android.permission.INTERNET" || {
+            echo "::error::La permission INTERNET est absente de l'APK ! L'analyse photo échouera sur tous les réseaux. Vérifiez android/app/src/main/AndroidManifest.xml."
+            exit 1
+          }
+          echo "Permission INTERNET : présente."
+
       # Nom de l'APK : azimiam-v<version>-<build>.apk, et
       # azimiam-v<version>-pr<N>-<build>.apk quand le run vient d'une PR.
       - name: Nommer l'APK (version + n° de build + n° de PR)
