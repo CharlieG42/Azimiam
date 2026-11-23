@@ -1,4 +1,11 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- OBLIGATOIRE : requêtes réseau vers l'API d'analyse (api.mistral.ai).
+         Bug v0.5.0 et antérieures : la permission n'existait que dans le
+         manifest debug (ajoutée par le Flutter tool pour le hot reload),
+         donc les APK release n'avaient AUCUN accès réseau, quelle que soit
+         la connexion du téléphone : l'analyse photo échouait toujours avec
+         « Failed host lookup ... errno = 7 ». -->
+    <uses-permission android:name="android.permission.INTERNET"/>
     <application
         android:label="azimiam"
         android:name="${applicationName}"
