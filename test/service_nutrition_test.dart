@@ -51,6 +51,41 @@ void main() {
     });
   });
 
+  group('rapprochement v0.6.1 (noms descriptifs de l\'IA)', () {
+    test('plat composé décrit → l\'aliment de base qui commence le nom gagne', () {
+      // L'IA renvoie « Lasagnes à la viande hachée et sauce tomate » :
+      // l'ancienne plus-longue sous-chaîne donnait « Steak haché 5 % »
+      // (« viande hachée » bats « lasagne »). Le bonus début de nom
+      // doit faire gagner « Lasagne ».
+      final a = ServiceNutrition.retrouve('Lasagnes à la viande hachée et sauce tomate');
+      expect(a, isNotNull);
+      expect(a!.nom, 'Lasagne');
+    });
+
+    test('les trous historiques de la base sont comblés', () {
+      expect(ServiceNutrition.retrouve('Sauce béchamel (visible en surface)')!.nom,
+          'Sauce béchamel');
+      expect(ServiceNutrition.retrouve('Tranche de citron')!.nom, 'Citron');
+      expect(ServiceNutrition.retrouve('Quiche lorraine maison')!.nom,
+          'Quiche lorraine');
+      expect(ServiceNutrition.retrouve('gratin')!.nom, 'Gratin dauphinois');
+    });
+
+    test('singulier/pluriel absorbés par le préfixe de mot', () {
+      expect(ServiceNutrition.retrouve('pommes')!.nom, 'Pomme');
+      expect(ServiceNutrition.retrouve('bananes')!.nom, 'Banane');
+    });
+
+    test('les approximations restent saines (pas de faux positif)', () {
+      // « Bœuf grillé » ne doit PAS retomber sur l'alias « oeuf »
+      // (l'ancien contains attrapait la sous-chaîne).
+      final a = ServiceNutrition.retrouve('bœuf grillé');
+      expect(a, isNotNull);
+      expect(a!.nom, 'Steak de bœuf grillé');
+      expect(ServiceNutrition.retrouve('zoiglberg 2'), isNull);
+    });
+  });
+
   group('suggestions', () {
     test('retourne au plus 6 résultats', () {
       expect(ServiceNutrition.suggestions(' ').length, 0);

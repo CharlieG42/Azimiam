@@ -47,7 +47,7 @@ Tu es un expert en nutrition. Analyse la photo de ce repas.
 2. Estime la quantité de chacun en grammes. Repères : assiette ≈ 26 cm de diamètre, fourchette ≈ 20 cm, canette ≈ 330 ml, tranche de pain ≈ 40 g, steak ≈ 150 g.
 3. Réponds UNIQUEMENT par un tableau JSON valide, sans aucun texte autour, au format exact :
 [{"nom": "Poulet grillé", "grammes": 150, "confiance": 0.8}]
-- "nom" : nom français de l'aliment, précis mais simple.
+- "nom" : nom français COURT et SIMPLE, 1 à 4 mots max, SANS parenthèses ni descriptions. Si le plat est un classique nommé, donne directement son nom (ex. « Lasagne », « Quiche lorraine », « Couscous », « Gratin dauphinois ») avec sa quantité totale ; sinon, décompose en composants simples (« Poulet grillé », « Riz blanc », « Haricots verts »). Bannis les tournures comme « Biscuit sec type petit-beurre » ou « Crème pâtissière ou crème dessert » : écris « Biscuit », « Crème dessert ».
 - "grammes" : nombre (les boissons aussi, en grammes ≈ millilitres).
 - "confiance" : nombre entre 0 et 1 (0 = très incertain).
 ''';

@@ -96,6 +96,13 @@ class _AjoutRepasEcranState extends State<AjoutRepasEcran> {
 
   // ---------------------------------------------------------------- IA
 
+  /// Base de recherche pour les suggestions : le catalogue complet s'il
+  /// a chargé, sinon la base embarquée (jamais une liste vide).
+  static List<Aliment> _baseRecherche(BuildContext context) {
+    final tous = context.read<Catalogue>().tous;
+    return tous.isNotEmpty ? tous : BaseAliments.tous;
+  }
+
   Future<void> _analyser() async {
     if (_photo == null) return;
     setState(() {
@@ -118,10 +125,13 @@ class _AjoutRepasEcranState extends State<AjoutRepasEcran> {
         });
       } else {
         for (final analyse in analyses) {
+          // Repli défensif : si le catalogue n'a pas chargé (tous vide),
+          // le rapprochement se fait quand même sur la base embarquée.
+          final catalogue = context.mounted
+              ? context.read<Catalogue>().tous
+              : BaseAliments.tous;
           final trouve = ServiceNutrition.retrouve(analyse.nom,
-              base: context.mounted
-                  ? context.read<Catalogue>().tous
-                  : BaseAliments.tous);
+              base: catalogue.isNotEmpty ? catalogue : BaseAliments.tous);
           _lignes.add(
             LigneRepas(
               nom: trouve?.nom ?? analyse.nom,
@@ -408,7 +418,7 @@ class _AjoutRepasEcranState extends State<AjoutRepasEcran> {
                       onChanged: (valeur) => setState(() =>
                           _suggestions = ServiceNutrition.suggestions(
                               valeur,
-                              base: context.read<Catalogue>().tous)),
+                              base: _baseRecherche(context))),
                       onSubmitted: (_) => _ajouterSaisieLibre(),
                     ),
                     if (_suggestions.isNotEmpty) ...[

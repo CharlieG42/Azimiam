@@ -88,5 +88,39 @@ void main() {
     final textField = tester.widget<TextField>(champ);
     expect(textField.focusNode?.hasFocus, isTrue);
   });
+
+  testWidgets(
+      'ligne hors base : la fiche d\u2019édition permet de créer l\u2019aliment '
+      'dans le catalogue (v0.6.1)', (tester) async {
+    tester.view.physicalSize = const Size(800, 1800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(pompe());
+    await tester.pumpAndSettle();
+
+    // Une ligne hors base (saisie libre).
+    await tester.enterText(
+        find.byKey(const Key('champSaisieAliment')), 'Ma recette maison');
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Saisie libre (hors base)'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('hors base, à vérifier'), findsOneWidget);
+
+    // Toucher la ligne ouvre la fiche d'édition, avec le bouton de
+    // création dans le catalogue (absent sur les lignes reconnues).
+    await tester.tap(find.text('Ma recette maison'));
+    await tester.pumpAndSettle();
+    final boutonCreer = find.byKey(const Key('boutonCreerCatalogue'));
+    expect(boutonCreer, findsOneWidget);
+
+    // La fiche de création s'ouvre, nom pré-rempli avec la ligne.
+    await tester.tap(boutonCreer);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('dialogNouvelAliment')), findsOneWidget);
+    final champNom =
+        tester.widget<TextField>(find.byKey(const Key('champNomAliment')));
+    expect(champNom.controller?.text, 'Ma recette maison');
+  });
 }
 

@@ -15,13 +15,13 @@ flowchart LR
 
 **L'IA identifie, elle ne calcule jamais.** Les modèles de vision qui donnent des calories directement hallucinent. Azimiam leur fait renvoyer uniquement un tableau JSON d'aliments + quantités ; les valeurs nutritionnelles viennent de la base locale (mini-base CIQUAL-esque aujourd'hui, import complet de CIQUAL dans la roadmap).
 
-**La correction est le produit.** La recherche (précision de 68-86 % pour l'identification, mais jusqu'à 39 % pour les portions) montre que la valeur d'une app de ce type se joue sur la facilité de corriger les quantités : champ grammes éditable en direct sur chaque ligne, dialogue d'édition complet, ajout manuel avec autocomplétion, badge « hors base, à vérifier » sur les aliments non reconnus.
+**La correction est le produit.** La recherche (précision de 68-86 % pour l'identification, mais jusqu'à 39 % pour les portions) montre que la valeur d'une app de ce type se joue sur la facilité de corriger les quantités : champ grammes éditable en direct sur chaque ligne, dialogue d'édition complet, ajout manuel avec autocomplétion, badge « hors base, à vérifier » sur les aliments non reconnus — et depuis la v0.6.1, création de l'aliment manquant **depuis la ligne elle-même** (fiche pré-remplie, valeurs réutilisées par les prochaines analyses IA).
 
 ## Fonctionnalités (v0.1)
 
-- 📷 Photo (caméra ou galerie) → analyse par modèle de vision (Mistral Pixtral par défaut, tout endpoint « chat completions » compatible OpenAI convient)
+- 📷 Photo (caméra ou galerie) → analyse par modèle de vision (Mistral Pixtral par défaut, tout endpoint « chat completions » compatible OpenAI convient) ; l'IA renvoie des noms courts (« Lasagne ») rapprochés de la base par mots avec bonus début de nom (v0.6.1 : fini les « Steak haché » pour une lasagne décrite en longueur)
 - ✏️ Correction rapide : quantité en direct, édition nom + valeurs / 100 g, suppression de ligne
-- 🥗 Mini-base locale de ~110 aliments courants avec alias de recherche (accents, synonymes), complétée par les aliments que vous ajoutez
+- 🥗 Mini-base locale de ~120 aliments courants avec alias de recherche (accents, synonymes), complétée par les aliments que vous ajoutez
 - ➕ Ajout manuel **intégré à l'écran d'ajout** (champ + suggestions de la base + « Saisie libre »), sans boîte de dialogue bloquante
 - 📊 Journal quotidien : total vs objectifs (calories, protéines, glucides, lipides), navigation entre les jours
 - 💾 SQLite local, réglages persistés (clé API, modèle, objectifs, profil)
@@ -49,7 +49,7 @@ lib/
     favori.dart               # FavoriRepas : snapshot JSON + empreinte
     activite.dart            # ActiviteSport : type, durée, distance, dénivelé, kcal
   data/
-    mini_base.dart            # ~110 aliments, valeurs / 100 g (approx. CIQUAL)
+    mini_base.dart            # ~120 aliments, valeurs / 100 g (approx. CIQUAL)
   services/
     service_ia.dart           # appel vision + parseur JSON tolérant (testé)
     service_nutrition.dart    # normalisation, matching, suggestions (testé)
@@ -86,6 +86,7 @@ test/
   service_activites_test.dart # calculs kcal : MET, vitesse, dénivelé, catalogue
   widget_activites_test.dart  # tests widget : écran Activités + dialogue de déclaration
   widget_catalogue_test.dart  # tests widget : catalogue (compteur base+perso, multi-mots, fiche d'ajout)
+  widget_dialog_nouvel_aliment_test.dart  # tests widget : fiche de création (succès, doublon, pré-remplissage)
 android/                       # coque Android versionnée (signature release configurée)
 .github/workflows/build-apk.yml  # CI : tests, APK signé, Release GitHub
 ```

@@ -46,8 +46,8 @@ void main() {
     await tester.pumpWidget(hote(catalogue));
     await tester.pumpAndSettle();
 
-    // Titre avec le nombre total (112 base + 1 perso).
-    expect(find.text('Catalogue d\'aliments (113)'), findsOneWidget);
+    // Titre avec le nombre total (120 base + 1 perso).
+    expect(find.text('Catalogue d\'aliments (121)'), findsOneWidget);
 
     // L'aliment perso est là, marqué « Perso » (viewport très haut pour
     // forcer la liste paresseuse à tout construire).
