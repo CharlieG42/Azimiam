@@ -172,6 +172,9 @@ class BaseAliments {
         v(89, 1.1, 23, 0.3, fibres: 2.6, sucres: 12)),
     Aliment('Orange', ['orange', 'mandarine', 'clementine', 'agrumes'],
         v(47, 0.9, 12, 0.1, fibres: 2.4, sucres: 9)),
+    Aliment(
+        'Citron', ['citron', 'jus de citron', 'zeste de citron'],
+        v(29, 1, 6.5, 0.3, fibres: 2.8, sucres: 2.5)),
     Aliment('Fraises', ['fraise', 'fraises', 'framboises', 'fruits rouges'],
         v(32, 0.7, 7.7, 0.3, fibres: 2, sucres: 4.9)),
     Aliment('Raisin', ['raisin', 'raisins'],
@@ -229,6 +232,18 @@ class BaseAliments {
         v(884, 0, 0, 100)),
     Aliment('Mayonnaise', ['mayonnaise', 'mayo', 'sauce mayonnaise'],
         v(680, 1, 2, 74)),
+    Aliment('Sauce tomate', ['sauce tomate', 'coulis de tomate', 'tomate cuisinee'],
+        v(60, 1.5, 8, 2.5)),
+    Aliment('Sauce béchamel', ['sauce bechamel', 'bechamel', 'sauce blanche'],
+        v(130, 4, 8, 9.5)),
+    Aliment('Ketchup', ['ketchup', 'sauce ketchup'],
+        v(112, 1.2, 24, 0.1, sucres: 20)),
+    Aliment(
+        'Vinaigrette', ['vinaigrette', 'sauce salade', 'dressing'],
+        v(330, 0.1, 2, 35)),
+    Aliment('Olives noires',
+        ['olive', 'olives', 'olives noires', 'olives vertes'],
+        v(115, 0.8, 6, 11)),
     Aliment(
         'Miel', ['miel', 'cuillere de miel'], v(304, 0.3, 82, 0, sucres: 82)),
     Aliment('Sucre', ['sucre', 'sucre blanc', 'sucre roux'],
@@ -293,6 +308,12 @@ class BaseAliments {
     Aliment('Sushi', ['sushi', 'makis', 'california rolls', 'nigiri'],
         v(145, 6, 30, 1.5)),
     Aliment('Tajine', ['tajine', 'tagine'], v(120, 9, 6, 6)),
+    Aliment('Quiche lorraine', ['quiche', 'quiche lorraine', 'part de quiche'],
+        v(250, 8, 20, 16)),
+    Aliment(
+        'Gratin dauphinois',
+        ['gratin dauphinois', 'gratin de pommes de terre', 'gratin'],
+        v(150, 4, 12, 9)),
     Aliment(
         'Couscous complet',
         ['couscous royal', 'couscous legumes', 'couscous complet', 'couscous'],

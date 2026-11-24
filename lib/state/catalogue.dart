@@ -27,12 +27,16 @@ class Catalogue extends ChangeNotifier {
     notifyListeners();
     try {
       perso = await _base.listeAlimentsPerso();
-      tous = [...BaseAliments.tous, ...perso]..sort(
-          (a, b) => a.nom.toLowerCase().compareTo(b.nom.toLowerCase()),
-        );
     } catch (e) {
+      // La base embarquée reste utilisable même si SQLite échoue : le
+      // rapprochement IA et la recherche ne doivent jamais tomber à
+      // vide pour un problème de lecture des aliments perso.
       erreur = e.toString();
+      perso = [];
     }
+    tous = [...BaseAliments.tous, ...perso]..sort(
+        (a, b) => a.nom.toLowerCase().compareTo(b.nom.toLowerCase()),
+      );
     enChargement = false;
     notifyListeners();
   }

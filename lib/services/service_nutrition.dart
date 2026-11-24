@@ -40,9 +40,21 @@ class ServiceNutrition {
   /// repris dans une phrase (« un morceau de poulet grillé »).
   /// [base] permet de chercher dans un catalogue enrichi (aliments
   /// personnalisés de l'utilisateur).
+  ///
+  /// v0.6.1 : rapprochement PAR MOTS et non plus par plus-longue
+  /// sous-chaîne — l'IA renvoie des noms descriptifs (« Lasagnes à la
+  /// viande hachée et sauce tomate ») ; l'ancien scoring préférait la plus
+  /// longue sous-chaîne contenue et renvoyait « Steak haché 5 % » au lieu
+  /// de « Lasagne ». Désormais tous les mots du candidat doivent être
+  /// présents en MOTS ENTIERS dans le nom (égalité, ou préfixe à
+  /// 4+ lettres pour absorber singulier/pluriel : « lasagne » /
+  /// « lasagnes »), avec un bonus si le nom COMMENCE par le candidat.
+  /// Réciproque plus faible (tous les mots du nom dans le candidat)
+  /// pour les noms courts : « thon » → « Thon frais ».
   static Aliment? retrouve(String nom, {List<Aliment>? base}) {
     final n = normalise(nom);
     if (n.isEmpty) return null;
+    final jetons = n.split(' ');
     Aliment? meilleur;
     var meilleurScore = 0;
     for (final aliment in base ?? BaseAliments.tous) {
@@ -51,13 +63,9 @@ class ServiceNutrition {
         if (c.isEmpty) continue;
         int score;
         if (c == n) {
-          score = 1000 + c.length;
-        } else if (n.contains(c)) {
-          score = c.length;
-        } else if (c.contains(n) && n.length >= 4) {
-          score = n.length;
+          score = 1000000 + c.length;
         } else {
-          continue;
+          score = _scoreRapprochement(c, jetons, n);
         }
         if (score > meilleurScore) {
           meilleurScore = score;
@@ -66,6 +74,64 @@ class ServiceNutrition {
       }
     }
     return meilleur;
+  }
+
+  /// Un mot candidat [mot] correspond à un mot du nom [jeton] s'ils sont
+  /// égaux, ou si l'un est un préfixe de l'autre avec 4 caractères ou
+  /// plus (singulier/pluriel : lasagne/lasagnes, poulet/poulets).
+  static bool _motsProches(String mot, String jeton) {
+    if (mot == jeton) return true;
+    if (mot.length >= 4 && jeton.length >= 4) {
+      return jeton.startsWith(mot) || mot.startsWith(jeton);
+    }
+    return false;
+  }
+
+  /// Score de rapprochement du candidat normalisé [cand] contre les mots
+  /// du nom IA [jetons]. 0 = aucun rapprochement.
+  static int _scoreRapprochement(String cand, List<String> jetons, String n) {
+    final mots = cand.split(' ');
+    // 1. Tous les mots du candidat sont dans le nom (le cas normal).
+    var couverts = true;
+    var points = 0;
+    for (var i = 0; i < mots.length && couverts; i++) {
+      var trouve = false;
+      for (final jeton in jetons) {
+        if (_motsProches(mots[i], jeton)) {
+          trouve = true;
+          break;
+        }
+      }
+      if (!trouve) {
+        couverts = false;
+      } else {
+        points += mots[i] == jetons.contains(mots[i]) ? 4 : 3;
+      }
+    }
+    if (couverts) {
+      var score = 1000 + points;
+      // Bonus début : le nom commence par le candidat — « Lasagnes à
+      // la viande… » doit faire gagner « Lasagne », pas « viande hachée ».
+      if (jetons.isNotEmpty && _motsProches(mots.first, jetons.first)) {
+        score += 500;
+      }
+      return score;
+    }
+    // 2. Réciproque : tous les mots du nom sont dans le candidat
+    // (nom court : « thon » → « Thon frais »). Plus faible que 1.
+    if (n.length < 4) return 0;
+    var tousPresents = true;
+    for (var i = 0; i < jetons.length && tousPresents; i++) {
+      var trouve = false;
+      for (final mot in mots) {
+        if (_motsProches(jetons[i], mot)) {
+          trouve = true;
+          break;
+        }
+      }
+      if (!trouve) tousPresents = false;
+    }
+    return tousPresents ? 100 + n.length : 0;
   }
 
   /// Recherche du catalogue : contrairement à l'ancien `contains`, tous les

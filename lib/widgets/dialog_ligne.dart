@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../models/repas.dart';
 import '../models/valeurs.dart';
+import '../state/catalogue.dart';
+import 'dialog_nouvel_aliment.dart';
 
 String _fmt(double d) =>
     d == d.roundToDouble() ? d.round().toString() : d.toStringAsFixed(1);
@@ -60,6 +63,45 @@ Future<bool> editerLigneDialog(BuildContext context, LigneRepas ligne) async {
               keyboardType: TextInputType.number,
               decoration: const InputDecoration(labelText: 'Lipides / 100 g'),
             ),
+            if (!ligne.reconnu) ...[
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                key: const Key('boutonCreerCatalogue'),
+                icon: const Icon(Icons.add_circle_outline),
+                label: const Text('Créer cet aliment dans le catalogue'),
+                onPressed: () async {
+                  // Fiche de création pré-remplie avec le nom de la ligne :
+                  // une fois créé, l'aliment alimentera aussi le
+                  // rapprochement IA des prochaines analyses.
+                  final cree = await showDialog<AlimentCree>(
+                    context: context,
+                    builder: (context) => DialogNouvelAliment(
+                      nomInitial: nomCtl.text.trim().isNotEmpty
+                          ? nomCtl.text.trim()
+                          : ligne.nom,
+                      onValide: (nom, alias, valeurs) => context
+                          .read<Catalogue>()
+                          .ajouter(nom: nom, alias: alias, valeurs: valeurs),
+                    ),
+                  );
+                  if (cree != null) {
+                    // Reprise des valeurs dans la fiche de la ligne :
+                    // l'utilisateur garde la main (Valider pour appliquer).
+                    nomCtl.text = cree.nom;
+                    kcalCtl.text = _fmt(cree.valeurs.kcal);
+                    protCtl.text = _fmt(cree.valeurs.proteines);
+                    glucCtl.text = _fmt(cree.valeurs.glucides);
+                    lipCtl.text = _fmt(cree.valeurs.lipides);
+                  }
+                },
+              ),
+              const SizedBox(height: 4),
+              const Text(
+                'Aliment hors base : créez-le une fois, toutes les '
+                'prochaines analyses le reconnaîtront.',
+                style: TextStyle(fontSize: 12, color: Colors.grey),
+              ),
+            ],
           ],
         ),
       ),

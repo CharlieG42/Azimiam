@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../data/mini_base.dart';
-import '../models/valeurs.dart';
 import '../services/service_nutrition.dart';
 import '../state/catalogue.dart';
+import '../widgets/dialog_nouvel_aliment.dart';
 
 /// Catalogue complet des aliments : base embarquée + aliments ajoutés par
 /// l'utilisateur. Recherche instantanée multi-mots insensible aux accents
@@ -13,7 +13,7 @@ import '../state/catalogue.dart';
 /// - Toucher un aliment le renvoie à l'écran appelant (pattern « pop avec
 ///   résultat ») qui l'ajoute au repas ;
 /// - Bouton « + » : ajouter un nouvel aliment au catalogue (persistant) ;
-/// - Les aliments perso (badge « Perso ») se supprient d'un swipe.
+/// - Les aliments perso (badge « Perso ») se suppriment d'un swipe.
 class CatalogueEcran extends StatefulWidget {
   const CatalogueEcran({super.key});
 
@@ -54,29 +54,25 @@ class _CatalogueEcranState extends State<CatalogueEcran> {
   }
 
   Future<void> _ajouterAliment() async {
-    await showDialog<void>(
+    final cree = await showDialog<AlimentCree>(
       context: context,
-      builder: (context) => _DialogNouvelAliment(
-        onValide: (nom, alias, valeurs) async {
-          final catalogue = context.read<Catalogue>();
-          final erreur =
-              await catalogue.ajouter(nom: nom, alias: alias, valeurs: valeurs);
-          if (!context.mounted) return;
-          if (erreur != null) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(erreur)),
-            );
-          } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                  content:
-                      Text('« $nom » ajouté au catalogue. Il apparaît dès '
-                          'maintenant dans la recherche de l\'écran d\'ajout.')),
-            );
-          }
-        },
+      builder: (context) => DialogNouvelAliment(
+        onValide: (nom, alias, valeurs) =>
+            context.read<Catalogue>().ajouter(
+                  nom: nom,
+                  alias: alias,
+                  valeurs: valeurs,
+                ),
       ),
     );
+    if (!mounted) return;
+    if (cree != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text('« ${cree.nom} » ajouté au catalogue. Il apparaît '
+                'dès maintenant dans la recherche de l\'écran d\'ajout.')),
+      );
+    }
   }
 
   @override
@@ -198,143 +194,6 @@ class _TuileAliment extends StatelessWidget {
         );
       },
       child: tuile,
-    );
-  }
-}
-
-/// Boîte de dialogue d'ajout d'un aliment au catalogue : nom, alias
-/// optionnels, valeurs pour 100 g. Enregistre via [onValide] qui renvoie
-/// une erreur lisible ou null.
-class _DialogNouvelAliment extends StatefulWidget {
-  final Future<void> Function(String nom, List<String> alias,
-      ValeursNutritionnelles valeurs) onValide;
-
-  const _DialogNouvelAliment({required this.onValide});
-
-  @override
-  State<_DialogNouvelAliment> createState() => _DialogNouvelAlimentState();
-}
-
-class _DialogNouvelAlimentState extends State<_DialogNouvelAliment> {
-  final _nomCtl = TextEditingController();
-  final _aliasCtl = TextEditingController();
-  final _kcalCtl = TextEditingController();
-  final _protCtl = TextEditingController();
-  final _glucCtl = TextEditingController();
-  final _lipCtl = TextEditingController();
-  bool _enregistre = false;
-
-  @override
-  void dispose() {
-    _nomCtl.dispose();
-    _aliasCtl.dispose();
-    _kcalCtl.dispose();
-    _protCtl.dispose();
-    _glucCtl.dispose();
-    _lipCtl.dispose();
-    super.dispose();
-  }
-
-  double? _lire(TextEditingController ctl) =>
-      double.tryParse(ctl.text.replaceAll(',', '.'));
-
-  Future<void> _valider() async {
-    final nom = _nomCtl.text.trim();
-    final kcal = _lire(_kcalCtl);
-    if (nom.isEmpty || kcal == null || kcal <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Nom et calories / 100 g sont requis.')),
-      );
-      return;
-    }
-    setState(() => _enregistre = true);
-    await widget.onValide(
-      nom,
-      _aliasCtl.text
-          .split(',')
-          .map((a) => a.trim())
-          .where((a) => a.isNotEmpty)
-          .toList(),
-      ValeursNutritionnelles(
-        kcal: kcal,
-        proteines: _lire(_protCtl) ?? 0,
-        glucides: _lire(_glucCtl) ?? 0,
-        lipides: _lire(_lipCtl) ?? 0,
-      ),
-    );
-    _enregistre = false;
-    if (!mounted) return;
-    Navigator.pop(context);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      key: const Key('dialogNouvelAliment'),
-      title: const Text('Ajouter un aliment au catalogue'),
-      content: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              key: const Key('champNomAliment'),
-              controller: _nomCtl,
-              autofocus: true,
-              textCapitalization: TextCapitalization.words,
-              decoration: const InputDecoration(
-                  labelText: 'Nom de l\'aliment *'),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _aliasCtl,
-              decoration: const InputDecoration(
-                labelText: 'Alias de recherche (optionnel)',
-                hintText: 'Séparés par des virgules (ex. : patate, pomme de terre)',
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _kcalCtl,
-              keyboardType:
-                  const TextInputType.numberWithOptions(decimal: true),
-              decoration: const InputDecoration(
-                  labelText: 'Calories / 100 g *', suffixText: 'kcal'),
-            ),
-            TextField(
-              controller: _protCtl,
-              keyboardType:
-                  const TextInputType.numberWithOptions(decimal: true),
-              decoration: const InputDecoration(
-                  labelText: 'Protéines / 100 g', suffixText: 'g'),
-            ),
-            TextField(
-              controller: _glucCtl,
-              keyboardType:
-                  const TextInputType.numberWithOptions(decimal: true),
-              decoration: const InputDecoration(
-                  labelText: 'Glucides / 100 g', suffixText: 'g'),
-            ),
-            TextField(
-              controller: _lipCtl,
-              keyboardType:
-                  const TextInputType.numberWithOptions(decimal: true),
-              decoration: const InputDecoration(
-                  labelText: 'Lipides / 100 g', suffixText: 'g'),
-            ),
-          ],
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Annuler'),
-        ),
-        FilledButton(
-          key: const Key('boutonEnregistrerAliment'),
-          onPressed: _enregistre ? null : _valider,
-          child: const Text('Enregistrer'),
-        ),
-      ],
     );
   }
 }
