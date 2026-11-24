@@ -8,6 +8,7 @@ import 'package:azimiam/screens/a_propos_ecran.dart';
 import 'package:azimiam/screens/accueil_ecran.dart';
 import 'package:azimiam/screens/ajout_repas_ecran.dart';
 import 'package:azimiam/screens/plan_ecran.dart';
+import 'package:azimiam/state/catalogue.dart';
 import 'package:azimiam/state/journal.dart';
 import 'package:azimiam/state/progression.dart';
 
@@ -22,6 +23,8 @@ void main() {
       providers: [
         ChangeNotifierProvider(create: (_) => Journal()),
         ChangeNotifierProvider(create: (_) => Progression()),
+        // L'écran d'ajout poussé depuis l'accueil cherche dans le catalogue.
+        ChangeNotifierProvider(create: (_) => Catalogue()),
       ],
       child: const MaterialApp(home: AccueilEcran()),
     );

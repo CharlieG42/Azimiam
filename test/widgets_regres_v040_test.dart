@@ -4,12 +4,14 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:azimiam/data/mini_base.dart';
 import 'package:azimiam/screens/accueil_ecran.dart';
 import 'package:azimiam/screens/catalogue_ecran.dart';
 import 'package:azimiam/screens/modifier_repas_ecran.dart';
 import 'package:azimiam/screens/reglages_ecran.dart';
 import 'package:azimiam/models/repas.dart';
 import 'package:azimiam/models/valeurs.dart';
+import 'package:azimiam/state/catalogue.dart';
 import 'package:azimiam/state/journal.dart';
 import 'package:azimiam/state/progression.dart';
 
@@ -108,18 +110,27 @@ void main() {
       (tester) async {
     // Le catalogue est poussé comme une vraie route : son « pop avec
     // résultat » doit refermer l'écran (impossible depuis la route racine).
-    await tester.pumpWidget(MaterialApp(
-      home: Builder(
-        builder: (context) => Scaffold(
-          body: Center(
-            child: FilledButton(
-              onPressed: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const CatalogueEcran(),
+    await tester.pumpWidget(MultiProvider(
+      providers: [
+        // Le catalogue cherche dans le provider (base + aliments perso).
+        // Pré-rempli avec la base embarquée, sans SQLite dans les tests.
+        ChangeNotifierProvider<Catalogue>.value(
+          value: Catalogue()..tous = BaseAliments.tous,
+        ),
+      ],
+      child: MaterialApp(
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: Center(
+              child: FilledButton(
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const CatalogueEcran(),
+                  ),
                 ),
+                child: const Text('ouvrir catalogue'),
               ),
-              child: const Text('ouvrir catalogue'),
             ),
           ),
         ),
@@ -141,6 +152,14 @@ void main() {
     await tester.pumpAndSettle();
     // L'alias « pomme de terre » retrouve la fiche « Pommes de terre cuites ».
     expect(find.text('Pommes de terre cuites'), findsOneWidget);
+
+    // Multi-mots : « pommes terre » (mots non contigus) retrouve aussi la
+    // fiche — le cœur de la v0.6.0.
+    await tester.enterText(
+        find.byKey(const Key('champRechercheCatalogue')), 'pommes terre');
+    await tester.pumpAndSettle();
+    expect(find.text('Pommes de terre cuites'), findsOneWidget);
+
     await tester.tap(find.text('Pommes de terre cuites'));
     await tester.pumpAndSettle();
     // L'aliment est pop-é : le catalogue est fermé.

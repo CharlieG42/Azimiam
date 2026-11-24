@@ -1,9 +1,11 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
 
+import '../data/mini_base.dart';
 import '../models/activite.dart';
 import '../models/favori.dart';
 import '../models/progression.dart';
@@ -24,7 +26,7 @@ class ServiceBase {
     final dossier = await getApplicationDocumentsDirectory();
     return openDatabase(
       p.join(dossier.path, 'azimiam.db'),
-      version: 4,
+      version: 5,
       onCreate: (db, version) async {
         await _creerTables(db);
       },
@@ -59,6 +61,20 @@ class ServiceBase {
               distance_km REAL,
               denivele_m REAL,
               kcal REAL NOT NULL
+            )
+          ''');
+        }
+        if (oldVersion < 5) {
+          await db.execute('''
+            CREATE TABLE IF NOT EXISTS aliments_perso(
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              nom TEXT NOT NULL,
+              alias TEXT NOT NULL DEFAULT '[]',
+              kcal100 REAL NOT NULL,
+              prot100 REAL NOT NULL,
+              gluc100 REAL NOT NULL,
+              lip100 REAL NOT NULL,
+              cree_le TEXT NOT NULL
             )
           ''');
         }
@@ -113,6 +129,18 @@ class ServiceBase {
         distance_km REAL,
         denivele_m REAL,
         kcal REAL NOT NULL
+      )
+    ''');
+    await db.execute('''
+      CREATE TABLE aliments_perso(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        nom TEXT NOT NULL,
+        alias TEXT NOT NULL DEFAULT '[]',
+        kcal100 REAL NOT NULL,
+        prot100 REAL NOT NULL,
+        gluc100 REAL NOT NULL,
+        lip100 REAL NOT NULL,
+        cree_le TEXT NOT NULL
       )
     ''');
   }
@@ -347,6 +375,61 @@ class ServiceBase {
 
   /// Toutes les activités (tous jours), pour l'export CSV.
   Future<List<ActiviteSport>> toutesLesActivites() => listeActivites();
+
+  // ------------------------------------------------- Aliments perso
+
+  /// Enregistre un aliment personnalisé (ajouté au catalogue par
+  /// l'utilisateur). Renvoie l'id de la ligne.
+  Future<int> ajouterAlimentPerso(Aliment aliment) async {
+    final db = await base;
+    return db.insert('aliments_perso', {
+      'nom': aliment.nom,
+      'alias': jsonEncode(aliment.alias),
+      'kcal100': aliment.valeurs.kcal,
+      'prot100': aliment.valeurs.proteines,
+      'gluc100': aliment.valeurs.glucides,
+      'lip100': aliment.valeurs.lipides,
+      'cree_le': cleInstant(DateTime.now()),
+    });
+  }
+
+  /// Tous les aliments personnalisés, du plus récent au plus ancien.
+  Future<List<Aliment>> listeAlimentsPerso() async {
+    final db = await base;
+    final lignes = await db.query('aliments_perso',
+        orderBy: 'cree_le DESC, id DESC');
+    return lignes
+        .map((l) => Aliment(
+              l['nom'] as String,
+              (jsonDecode(l['alias'] as String) as List)
+                  .map((a) => a.toString())
+                  .toList(),
+              ValeursNutritionnelles(
+                kcal: (l['kcal100'] as num).toDouble(),
+                proteines: (l['prot100'] as num).toDouble(),
+                glucides: (l['gluc100'] as num).toDouble(),
+                lipides: (l['lip100'] as num).toDouble(),
+              ),
+              perso: true,
+              id: l['id'] as int,
+            ))
+        .toList();
+  }
+
+  /// Renvoie l'aliment perso portant ce nom (normalisé), ou null.
+  Future<Aliment?> alimentPersoParNom(String nom) async {
+    final tous = await listeAlimentsPerso();
+    final cible = nom.trim().toLowerCase();
+    for (final a in tous) {
+      if (a.nom.trim().toLowerCase() == cible) return a;
+    }
+    return null;
+  }
+
+  Future<void> supprimerAlimentPerso(int id) async {
+    final db = await base;
+    await db.delete('aliments_perso', where: 'id = ?', whereArgs: [id]);
+  }
 
   // ------------------------------------------------------------ Favoris
 

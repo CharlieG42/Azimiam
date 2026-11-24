@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:azimiam/data/mini_base.dart';
 import 'package:azimiam/models/valeurs.dart';
 import 'package:azimiam/services/service_nutrition.dart';
 
@@ -56,6 +57,61 @@ void main() {
       final s = ServiceNutrition.suggestions('pa');
       expect(s.length, lessThanOrEqualTo(6));
       expect(s.map((a) => a.nom), contains('Pâtes cuites'));
+    });
+
+    test('multi-mots : « blanc poulet » suggère le poulet', () {
+      final s = ServiceNutrition.suggestions('blanc poulet');
+      expect(s, isNotEmpty);
+      expect(s.first.nom, 'Poulet grillé');
+    });
+  });
+
+  group('recherche multi-mots (v0.6.0)', () {
+    test('« pommes terre » (mots non contigus) retrouve les pommes de terre',
+        () {
+      final resultats = ServiceNutrition.rechercher('pommes terre');
+      expect(resultats, isNotEmpty);
+      expect(resultats.any((a) => a.nom.contains('Pommes de terre')), isTrue);
+    });
+
+    test('accent + ordre des mots : « TERRE pommes » marche aussi', () {
+      final resultats = ServiceNutrition.rechercher('TERRE pommes');
+      expect(resultats.any((a) => a.nom.contains('Pommes de terre')), isTrue);
+    });
+
+    test('pertinence : le nom exact sort avant les alias', () {
+      final resultats = ServiceNutrition.rechercher('poulet');
+      expect(resultats.first.nom, 'Poulet grillé');
+    });
+
+    test('un mot absent élimine l\'aliment', () {
+      final resultats = ServiceNutrition.rechercher('poulet pizza');
+      expect(resultats.every((a) => a.nom != 'Poulet grillé'), isTrue);
+    });
+
+    test('texte vide : liste vide', () {
+      expect(ServiceNutrition.rechercher(''), isEmpty);
+      expect(ServiceNutrition.rechercher('   '), isEmpty);
+    });
+
+    test('base personnalisée injectée : les aliments perso sont cherchés',
+        () {
+      final perso = [
+        Aliment('Gâteau maison de mamie', ['gateau mamie'],
+            const ValeursNutritionnelles(
+                kcal: 320, proteines: 5, glucides: 45, lipides: 12),
+            perso: true,
+            id: 1),
+      ];
+      final resultats =
+          ServiceNutrition.rechercher('gateau mamie', base: perso);
+      expect(resultats, isNotEmpty);
+      expect(resultats.first.nom, 'Gâteau maison de mamie');
+      // Ce mot ne matche rien dans une base vide.
+      expect(
+        ServiceNutrition.rechercher('gateau mamie', base: const []),
+        isEmpty,
+      );
     });
   });
 

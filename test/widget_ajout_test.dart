@@ -4,7 +4,9 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:azimiam/data/mini_base.dart';
 import 'package:azimiam/screens/ajout_repas_ecran.dart';
+import 'package:azimiam/state/catalogue.dart';
 import 'package:azimiam/state/journal.dart';
 
 void main() {
@@ -14,8 +16,15 @@ void main() {
   });
 
   Widget pompe() {
-    return ChangeNotifierProvider(
-      create: (_) => Journal(),
+    // Catalogue pré-rempli avec la base embarquée, sans passer par la
+    // base de données (pas de SQLite dans les tests widget).
+    final catalogue = Catalogue()..tous = BaseAliments.tous;
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => Journal()),
+        // L'écran d'ajout cherche dans le catalogue complet (base + perso).
+        ChangeNotifierProvider<Catalogue>.value(value: catalogue),
+      ],
       child: const MaterialApp(home: AjoutRepasEcran()),
     );
   }
