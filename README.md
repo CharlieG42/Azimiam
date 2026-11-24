@@ -21,7 +21,7 @@ flowchart LR
 
 - 📷 Photo (caméra ou galerie) → analyse par modèle de vision (Mistral Pixtral par défaut, tout endpoint « chat completions » compatible OpenAI convient)
 - ✏️ Correction rapide : quantité en direct, édition nom + valeurs / 100 g, suppression de ligne
-- 🥗 Mini-base locale de ~110 aliments courants avec alias de recherche (accents, synonymes)
+- 🥗 Mini-base locale de ~110 aliments courants avec alias de recherche (accents, synonymes), complétée par les aliments que vous ajoutez
 - ➕ Ajout manuel **intégré à l'écran d'ajout** (champ + suggestions de la base + « Saisie libre »), sans boîte de dialogue bloquante
 - 📊 Journal quotidien : total vs objectifs (calories, protéines, glucides, lipides), navigation entre les jours
 - 💾 SQLite local, réglages persistés (clé API, modèle, objectifs, profil)
@@ -29,7 +29,7 @@ flowchart LR
 - 📈 **Suivi des progressions** : pesées historisées (une par jour, SQLite), courbe de poids, catégorie IMC (OMS), progression vers le poids cible (% parcouru, durée estimée à ~7 700 kcal/kg), moyennes d'apports 7/30 jours et graphique des calories des 14 derniers jours vs objectif (dessiné nativement, sans dépendance graphique)
 - 📅 **Plan nutritionnel** : fixe les **objectifs globaux** de la journée (kcal, protéines, glucides, lipides) et affiche la progression réelle du jour (réalisé / objectif / reste) — **sans imposer de plats précis**
 - 🏃 **Activités sportives** : déclaration d'une séance (type parmi 16, date et heure, durée, distance et dénivelé positif le cas échéant), **calories dépensées calculées automatiquement** (MET du type ajusté à la vitesse pour la course et le vélo, travail de montée ajouté au dénivelé, sur la base de la dernière pesée) ou saisies à la main ; historique groupé par jour, résumé des 7 derniers jours (séances, durée, km, kcal)
-- ⭐ Favoris & repas récurrents (« recopier le déjeuner d'hier ») : étoile sur la carte du repas, section « Repas fréquents » sur l'accueil, recréation en un appui (table SQLite `favoris`) ; catalogue d'aliments avec recherche instantanée insensible aux accents
+- ⭐ Favoris & repas récurrents (« recopier le déjeuner d'hier ») : étoile sur la carte du repas, section « Repas fréquents » sur l'accueil, recréation en un appui (table SQLite `favoris`) ; catalogue d'aliments avec recherche instantanée **multi-mots** insensible aux accents (« pommes terre » retrouve « Pommes de terre cuites ») et **aliments personnels persistants** (bouton « + » du catalogue : nom, alias, valeurs / 100 g, stockés dans SQLite `aliments_perso`, supprimables d'un swipe, immédiatement disponibles dans la recherche de l'écran d'ajout et le rapprochement IA)
 - 📤 Export CSV du journal, des pesées et des activités sportives (dossier `Téléchargements/Azimiam`)
 - ℹ️ Menu « À propos » : version embarquée telle que définie dans le `pubspec.yaml` (ex. `0.2.0-pr8+25` en PR, `0.2.0+25` sur main), principe de l'app et avertissement
 - 🎨 Icône d'app dédiée (assiette + couverts sur fond vert) : PNG mipmap 48→192 px + icône adaptative vectorielle (Android 8+)
@@ -62,9 +62,12 @@ lib/
     journal.dart              # ChangeNotifier : journée, totaux, erreurs
     progression.dart          # ChangeNotifier : pesées, totaux 30 j, réglages
     activites.dart            # ChangeNotifier : séances sportives, totaux 7 j
+    catalogue.dart            # ChangeNotifier : base + aliments perso (doublons, ajout, suppression)
   screens/
     accueil_ecran.dart        # résumé + liste des repas + navigation jours + menu
     ajout_repas_ecran.dart    # photo → IA → correction → enregistrement + ajout manuel inline
+    modifier_repas_ecran.dart # modification d'un repas : type, lignes, total
+    catalogue_ecran.dart      # catalogue complet : recherche multi-mots, ajout d'aliments perso
     progression_ecran.dart    # IMC, courbe de poids, apports 7/14/30 jours
     plan_ecran.dart           # objectifs globaux du jour vs réalisé (sans plats imposés)
     activites_ecran.dart      # déclaration des activités sportives + historique
@@ -82,6 +85,7 @@ test/
   widget_ajout_test.dart      # tests widget : ajout manuel inline (suggestion base / saisie libre)
   service_activites_test.dart # calculs kcal : MET, vitesse, dénivelé, catalogue
   widget_activites_test.dart  # tests widget : écran Activités + dialogue de déclaration
+  widget_catalogue_test.dart  # tests widget : catalogue (compteur base+perso, multi-mots, fiche d'ajout)
 android/                       # coque Android versionnée (signature release configurée)
 .github/workflows/build-apk.yml  # CI : tests, APK signé, Release GitHub
 ```

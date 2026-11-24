@@ -2,11 +2,22 @@ import '../models/valeurs.dart';
 
 /// Un aliment de la base locale.
 class Aliment {
+  /// Nom affiché (et reconnu par la recherche).
   final String nom;
+
+  /// Variantes/noms proches qui remontent aussi à la recherche.
   final List<String> alias;
+
   final ValeursNutritionnelles valeurs;
 
-  Aliment(this.nom, this.alias, this.valeurs);
+  /// Vrai si l'aliment a été ajouté par l'utilisateur au catalogue
+  /// (table `aliments_perso`) : il peut être supprimé.
+  final bool perso;
+
+  /// Identifiant en base (aliments personnalisés uniquement).
+  final int? id;
+
+  Aliment(this.nom, this.alias, this.valeurs, {this.perso = false, this.id});
 }
 
 /// Mini-base locale d'aliments courants (~110), valeurs APPROXIMATIVES

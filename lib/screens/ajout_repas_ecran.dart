@@ -13,6 +13,7 @@ import 'catalogue_ecran.dart';
 import '../services/service_ia.dart';
 import '../services/service_nutrition.dart';
 import '../services/service_reglages.dart';
+import '../state/catalogue.dart';
 import '../state/journal.dart';
 import '../widgets/carte_ligne.dart';
 import '../widgets/dialog_ligne.dart';
@@ -117,7 +118,10 @@ class _AjoutRepasEcranState extends State<AjoutRepasEcran> {
         });
       } else {
         for (final analyse in analyses) {
-          final trouve = ServiceNutrition.retrouve(analyse.nom);
+          final trouve = ServiceNutrition.retrouve(analyse.nom,
+              base: context.mounted
+                  ? context.read<Catalogue>().tous
+                  : BaseAliments.tous);
           _lignes.add(
             LigneRepas(
               nom: trouve?.nom ?? analyse.nom,
@@ -401,8 +405,10 @@ class _AjoutRepasEcranState extends State<AjoutRepasEcran> {
                         hintText: 'Ex. : poulet, riz, pomme…',
                         border: OutlineInputBorder(),
                       ),
-                      onChanged: (valeur) => setState(
-                          () => _suggestions = ServiceNutrition.suggestions(valeur)),
+                      onChanged: (valeur) => setState(() =>
+                          _suggestions = ServiceNutrition.suggestions(
+                              valeur,
+                              base: context.read<Catalogue>().tous)),
                       onSubmitted: (_) => _ajouterSaisieLibre(),
                     ),
                     if (_suggestions.isNotEmpty) ...[

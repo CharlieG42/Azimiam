@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'screens/accueil_ecran.dart';
 import 'services/affichage_erreurs.dart';
 import 'state/activites.dart';
+import 'state/catalogue.dart';
 import 'state/journal.dart';
 import 'state/progression.dart';
 
@@ -33,6 +34,7 @@ class AzimiamApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => Journal()..charger()),
         ChangeNotifierProvider(create: (_) => Progression()..charger()),
         ChangeNotifierProvider(create: (_) => Activites()..charger()),
+        ChangeNotifierProvider(create: (_) => Catalogue()..charger()),
       ],
       child: MaterialApp(
         title: 'Azimiam',
