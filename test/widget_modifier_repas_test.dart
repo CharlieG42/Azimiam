@@ -9,7 +9,8 @@ import 'package:azimiam/models/valeurs.dart';
 import 'package:azimiam/screens/modifier_repas_ecran.dart';
 import 'package:azimiam/state/journal.dart';
 
-/// Tests de l'écran « Modifier le repas » : date et heure éditables (v0.6.2).
+/// Tests de l'écran « Modifier le repas » : date éditable (v0.6.3 —
+/// l'heure ne l'est pas : les étiquettes de repas suffisent).
 void main() {
   setUp(() async {
     await initializeDateFormatting('fr_FR');
@@ -50,14 +51,14 @@ void main() {
     );
   }
 
-  testWidgets('affiche la date et l\'heure du repas', (tester) async {
+  testWidgets('affiche la date du repas', (tester) async {
     await tester.pumpWidget(pompe(repasTest()));
     await tester.pumpAndSettle();
 
     expect(find.byKey(const Key('boutonDateRepas')), findsOneWidget);
     expect(find.text('Mardi 24 novembre 2026'), findsOneWidget);
-    expect(find.byKey(const Key('boutonHeureRepas')), findsOneWidget);
-    expect(find.text('19:42'), findsOneWidget);
+    // Pas de sélecteur d'heure : les étiquettes de repas suffisent.
+    expect(find.byKey(const Key('boutonHeureRepas')), findsNothing);
   });
 
   testWidgets('la date du repas se change via le calendrier', (tester) async {
@@ -69,7 +70,7 @@ void main() {
     expect(find.byType(DatePickerDialog), findsOneWidget);
 
     // Choix du 25 du mois affiché, puis validation : le repas du mardi
-    // devient un repas du mercredi.
+    // devient un repas du mercredi. L'heure enregistrée est conservée.
     await tester.tap(find.text('25'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('OK'));
@@ -77,22 +78,5 @@ void main() {
 
     expect(find.byType(DatePickerDialog), findsNothing);
     expect(find.text('Mercredi 25 novembre 2026'), findsOneWidget);
-    // L'heure est conservée.
-    expect(find.text('19:42'), findsOneWidget);
-  });
-
-  testWidgets('l\'heure du repas se change ; annulation = inchangée',
-      (tester) async {
-    await tester.pumpWidget(pompe(repasTest()));
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.byKey(const Key('boutonHeureRepas')));
-    await tester.pumpAndSettle();
-    expect(find.byType(TimePickerDialog), findsOneWidget);
-
-    await tester.tap(find.text('Annuler'));
-    await tester.pumpAndSettle();
-    expect(find.byType(TimePickerDialog), findsNothing);
-    expect(find.text('19:42'), findsOneWidget);
   });
 }

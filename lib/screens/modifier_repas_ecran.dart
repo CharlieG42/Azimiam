@@ -8,9 +8,11 @@ import '../state/journal.dart';
 import '../widgets/carte_ligne.dart';
 import '../widgets/dialog_ligne.dart';
 
-/// Modification d'un repas déjà enregistré : type, date et heure, lignes
-/// d'aliments (quantité, valeurs, suppression). La photo ne change pas ;
-/// l'écran enregistre en base et l'accueil se rafraîchit tout seul.
+/// Modification d'un repas déjà enregistré : type, date, lignes d'aliments
+/// (quantité, valeurs, suppression). La photo ne change pas ; l'écran
+/// enregistre en base et l'accueil se rafraîchit tout seul.
+/// L'heure du repas n'est pas éditée : les étiquettes Petit-déjeuner,
+/// Déjeuner, Collation, Dîner suffisent au quotidien (choix de Charlie).
 class ModifierRepasEcran extends StatefulWidget {
   final Repas repas;
 
@@ -57,8 +59,9 @@ class _ModifierRepasEcranState extends State<ModifierRepasEcran> {
     final aujourdHui = dateSeule(DateTime.now());
     // Le repas peut être attribué à demain (repas saisi un peu en avance),
     // pas au-delà ; et jamais avant l'an 2000.
-    final derniere =
-        _prisLe.isAfter(aujourdHui) ? _prisLe : aujourdHui.add(const Duration(days: 1));
+    final derniere = _prisLe.isAfter(aujourdHui)
+        ? _prisLe
+        : aujourdHui.add(const Duration(days: 1));
     final choisi = await showDatePicker(
       context: context,
       initialDate: _prisLe,
@@ -67,28 +70,13 @@ class _ModifierRepasEcranState extends State<ModifierRepasEcran> {
       helpText: 'Nouvelle date du repas',
     );
     if (choisi == null || !mounted) return;
+    // L'heure enregistrée est conservée : seule la journée change.
     setState(() => _prisLe = DateTime(
           choisi.year,
           choisi.month,
           choisi.day,
           _prisLe.hour,
           _prisLe.minute,
-        ));
-  }
-
-  Future<void> _changerHeure() async {
-    final choisi = await showTimePicker(
-      context: context,
-      initialTime: TimeOfDay.fromDateTime(_prisLe),
-      helpText: 'Nouvelle heure du repas',
-    );
-    if (choisi == null || !mounted) return;
-    setState(() => _prisLe = DateTime(
-          _prisLe.year,
-          _prisLe.month,
-          _prisLe.day,
-          choisi.hour,
-          choisi.minute,
         ));
   }
 
@@ -132,25 +120,17 @@ class _ModifierRepasEcranState extends State<ModifierRepasEcran> {
             ),
             const SizedBox(height: 12),
 
-            // ----- Date et heure -----
+            // ----- Date du repas -----
             // Un repas saisi sur la mauvaise journée doit pouvoir être
             // relogé (ex. : le dîner d'hier daté aujourd'hui par erreur).
-            Wrap(
-              spacing: 8,
-              children: [
-                ActionChip(
-                  key: const Key('boutonDateRepas'),
-                  avatar: const Icon(Icons.calendar_today_outlined, size: 18),
-                  label: Text(_libelleDate()),
-                  onPressed: _changerDate,
-                ),
-                ActionChip(
-                  key: const Key('boutonHeureRepas'),
-                  avatar: const Icon(Icons.schedule_outlined, size: 18),
-                  label: Text(DateFormat('HH:mm').format(_prisLe)),
-                  onPressed: _changerHeure,
-                ),
-              ],
+            Align(
+              alignment: Alignment.centerLeft,
+              child: OutlinedButton.icon(
+                key: const Key('boutonDateRepas'),
+                onPressed: _changerDate,
+                icon: const Icon(Icons.calendar_today_outlined, size: 18),
+                label: Text(_libelleDate()),
+              ),
             ),
             const SizedBox(height: 12),
 

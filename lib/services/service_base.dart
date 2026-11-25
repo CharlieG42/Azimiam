@@ -178,15 +178,18 @@ class ServiceBase {
     return id;
   }
 
-  /// Met à jour un repas existant (type + lignes). L'heure et la photo ne
-  /// changent pas : les lignes sont simplement remplacées.
+  /// Met à jour un repas existant (date/heure, type + lignes). La photo ne
+  /// change pas : les lignes sont simplement remplacées.
   Future<void> majRepas(Repas repas) async {
     final db = await base;
     final id = repas.id;
     if (id == null) return;
     await db.update(
       'repas',
-      {'type': repas.type},
+      {
+        'pris_le': cleInstant(repas.prisLe),
+        'type': repas.type,
+      },
       where: 'id = ?',
       whereArgs: [id],
     );
