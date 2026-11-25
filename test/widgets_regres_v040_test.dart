@@ -11,6 +11,7 @@ import 'package:azimiam/screens/modifier_repas_ecran.dart';
 import 'package:azimiam/screens/reglages_ecran.dart';
 import 'package:azimiam/models/repas.dart';
 import 'package:azimiam/models/valeurs.dart';
+import 'package:azimiam/state/activites.dart';
 import 'package:azimiam/state/catalogue.dart';
 import 'package:azimiam/state/journal.dart';
 import 'package:azimiam/state/progression.dart';
@@ -59,6 +60,8 @@ void main() {
       providers: [
         ChangeNotifierProvider.value(value: journal),
         ChangeNotifierProvider(create: (_) => Progression()),
+        // v0.7.0 : l'accueil lit les compteurs pas/étages d'Activites.
+        ChangeNotifierProvider(create: (_) => Activites()),
       ],
       child: const MaterialApp(home: AccueilEcran()),
     ));
@@ -88,6 +91,8 @@ void main() {
       providers: [
         ChangeNotifierProvider.value(value: journal),
         ChangeNotifierProvider(create: (_) => Progression()),
+        // v0.7.0 : l'accueil lit les compteurs pas/étages d'Activites.
+        ChangeNotifierProvider(create: (_) => Activites()),
       ],
       child: const MaterialApp(home: AccueilEcran()),
     ));

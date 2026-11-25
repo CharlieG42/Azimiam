@@ -57,6 +57,18 @@ class ActivitesEcran extends StatelessWidget {
                       padding: const EdgeInsets.all(12),
                       children: [
                         _CarteSemaine(activites: activites),
+                        // v0.7.0 : retour discret du dernier import santé
+                        // (ex. « 2 séances importées depuis Health Connect »).
+                        if (activites.infoImport != null)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: Text(
+                              activites.infoImport!,
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                  fontSize: 12, color: Colors.grey.shade600),
+                            ),
+                          ),
                         const SizedBox(height: 8),
                         for (final groupe in activites.parJour) ...[
                           Padding(
@@ -204,9 +216,39 @@ class _CarteActivite extends StatelessWidget {
               size: 32,
               color: Theme.of(context).colorScheme.primary,
             ),
-            title: Text(
-              type?.libelle ?? activite.type,
-              style: const TextStyle(fontWeight: FontWeight.w600),
+            title: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Flexible(
+                  child: Text(
+                    type?.libelle ?? activite.type,
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                ),
+                // v0.7.0 : badge d'origine sur les séances importées
+                // depuis une source santé (montre Garmin ou autre).
+                if ((activite.source ?? '').contains('garmin')) ...[
+                  const SizedBox(width: 6),
+                  Tooltip(
+                    message: 'Importée depuis la montre Garmin',
+                    child: Icon(
+                      Icons.watch_outlined,
+                      size: 18,
+                      color: Colors.blueGrey.shade400,
+                    ),
+                  ),
+                ] else if (activite.importee) ...[
+                  const SizedBox(width: 6),
+                  Tooltip(
+                    message: 'Importée depuis Health Connect',
+                    child: Icon(
+                      Icons.health_and_safety_outlined,
+                      size: 18,
+                      color: Colors.blueGrey.shade400,
+                    ),
+                  ),
+                ],
+              ],
             ),
             subtitle: Text(details.join(' · ')),
             trailing: Text(

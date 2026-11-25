@@ -7,6 +7,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:azimiam/screens/a_propos_ecran.dart';
 import 'package:azimiam/screens/accueil_ecran.dart';
 import 'package:azimiam/screens/ajout_repas_ecran.dart';
+import 'package:azimiam/services/service_sante.dart';
+import 'package:azimiam/state/activites.dart';
 import 'package:azimiam/state/catalogue.dart';
 import 'package:azimiam/state/journal.dart';
 import 'package:azimiam/state/progression.dart';
@@ -22,6 +24,8 @@ void main() {
       providers: [
         ChangeNotifierProvider(create: (_) => Journal()),
         ChangeNotifierProvider(create: (_) => Progression()),
+        // v0.7.0 : la carte résumé lit les compteurs pas/étages.
+        ChangeNotifierProvider(create: (_) => Activites()),
         // L'écran d'ajout poussé depuis l'accueil cherche dans le catalogue.
         ChangeNotifierProvider(create: (_) => Catalogue()),
       ],
@@ -88,6 +92,7 @@ void main() {
       providers: [
         ChangeNotifierProvider<Journal>.value(value: journal),
         ChangeNotifierProvider(create: (_) => Progression()),
+        ChangeNotifierProvider(create: (_) => Activites()),
         ChangeNotifierProvider(create: (_) => Catalogue()),
       ],
       child: const MaterialApp(home: AccueilEcran()),
@@ -107,6 +112,7 @@ void main() {
       providers: [
         ChangeNotifierProvider<Journal>.value(value: journal),
         ChangeNotifierProvider(create: (_) => Progression()),
+        ChangeNotifierProvider(create: (_) => Activites()),
         ChangeNotifierProvider(create: (_) => Catalogue()),
       ],
       child: const MaterialApp(home: AccueilEcran()),
@@ -128,5 +134,27 @@ void main() {
     expect(journal.jour.year, maintenant.year);
     expect(journal.jour.month, maintenant.month);
     expect(journal.jour.day, maintenant.day);
+  });
+
+  testWidgets('compteurs pas/étages du jour affichés quand Health Connect '
+      'les fournit (v0.7.0)', (tester) async {
+    // Pas de journal fourni : un Journal() par défaut affiche Aujourd'hui,
+    // donc la carte résumé lit Activites.compteursJour.
+    final activites = Activites()
+      ..compteursJour = CompteursJour(pas: 8432, etages: 12);
+    await tester.pumpWidget(MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => Journal()),
+        ChangeNotifierProvider(create: (_) => Progression()),
+        ChangeNotifierProvider<Activites>.value(value: activites),
+        ChangeNotifierProvider(create: (_) => Catalogue()),
+      ],
+      child: const MaterialApp(home: AccueilEcran()),
+    ));
+    await tester.pump();
+
+    expect(find.text('8 432 pas'), findsOneWidget);
+    expect(find.text('12 étages'), findsOneWidget);
+    expect(find.byIcon(Icons.stairs), findsOneWidget);
   });
 }
