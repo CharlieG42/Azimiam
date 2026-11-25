@@ -16,7 +16,11 @@ if (keystorePropertiesFile.exists()) {
 
 android {
     namespace = "wildzimut.azimiam"
-    compileSdk = flutter.compileSdkVersion
+    // v0.7.0 : 35 au lieu de flutter.compileSdkVersion (34 sous 3.24.4) :
+    // le plugin health dépend d'androidx.health:health-connect-client
+    // compilée en SDK 35. AGP 8.1 l'accepte grâce à
+    // android.suppressUnsupportedCompileSdk=35 dans gradle.properties.
+    compileSdk = 35
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
@@ -30,7 +34,9 @@ android {
 
     defaultConfig {
         applicationId = "wildzimut.azimiam"
-        minSdk = flutter.minSdkVersion
+        // v0.7.0 : 26 au lieu de flutter.minSdkVersion (21) exigé par le
+        // plugin health pour lire Health Connect (Garmin Connect).
+        minSdk = 26
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName

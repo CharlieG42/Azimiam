@@ -26,7 +26,7 @@ class ServiceBase {
     final dossier = await getApplicationDocumentsDirectory();
     return openDatabase(
       p.join(dossier.path, 'azimiam.db'),
-      version: 5,
+      version: 6,
       onCreate: (db, version) async {
         await _creerTables(db);
       },
@@ -78,6 +78,14 @@ class ServiceBase {
             )
           ''');
         }
+        if (oldVersion < 6) {
+          // v0.7.0 : traçabilité des séances importées depuis Health
+          // Connect (Garmin) : clé externe de dédoublonnage + source.
+          await db.execute(
+              'ALTER TABLE activites ADD COLUMN cle_externe TEXT');
+          await db.execute(
+              'ALTER TABLE activites ADD COLUMN source TEXT');
+        }
       },
     );
   }
@@ -128,7 +136,9 @@ class ServiceBase {
         duree_min REAL NOT NULL,
         distance_km REAL,
         denivele_m REAL,
-        kcal REAL NOT NULL
+        kcal REAL NOT NULL,
+        cle_externe TEXT,
+        source TEXT
       )
     ''');
     await db.execute('''
@@ -350,6 +360,8 @@ class ServiceBase {
       'distance_km': activite.distanceKm,
       'denivele_m': activite.deniveleM,
       'kcal': activite.kcal,
+      'cle_externe': activite.cleExterne,
+      'source': activite.source,
     });
   }
 
@@ -367,8 +379,24 @@ class ServiceBase {
               distanceKm: (l['distance_km'] as num?)?.toDouble(),
               deniveleM: (l['denivele_m'] as num?)?.toDouble(),
               kcal: (l['kcal'] as num).toDouble(),
+              cleExterne: l['cle_externe'] as String?,
+              source: l['source'] as String?,
             ))
         .toList();
+  }
+
+  /// Clés externes des séances déjà importées (dédoublonnage v0.7.0).
+  ///
+  /// Seules les lignes avec une clé non vide comptent : une saisie
+  /// manuelle n'a pas d'identité Health Connect.
+  Future<Set<String>> clesExternesActivites() async {
+    final db = await base;
+    final lignes = await db.query('activites',
+        columns: ['cle_externe'],
+        where: "cle_externe IS NOT NULL AND cle_externe != ''");
+    return lignes
+        .map((l) => l['cle_externe'] as String)
+        .toSet();
   }
 
   Future<void> supprimerActivite(int id) async {

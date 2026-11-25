@@ -19,7 +19,9 @@ pluginManagement {
 plugins {
     id "dev.flutter.flutter-plugin-loader" version "1.0.0"
     id "com.android.application" version "8.1.0" apply false
-    id "org.jetbrains.kotlin.android" version "1.8.22" apply false
+    // v0.7.0 : 1.9.22 (au lieu de 1.8.22) exigé par le plugin health, dont
+    // les dépendances Health Connect embarquent des métadonnées Kotlin 1.9.
+    id "org.jetbrains.kotlin.android" version "1.9.22" apply false
 }
 
 include ":app"

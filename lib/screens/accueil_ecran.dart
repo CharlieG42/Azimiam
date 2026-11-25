@@ -7,6 +7,8 @@ import 'package:provider/provider.dart';
 import '../models/repas.dart';
 import '../models/valeurs.dart';
 import '../services/service_reglages.dart';
+import '../services/service_sante.dart';
+import '../state/activites.dart';
 import '../state/journal.dart';
 import 'a_propos_ecran.dart';
 import 'activites_ecran.dart';
@@ -35,6 +37,10 @@ IconData _iconeType(String type) {
 double _sousTotal(Journal journal, String type) => journal.repas
     .where((r) => r.type == type)
     .fold(0.0, (acc, repas) => acc + repas.total.kcal);
+
+/// v0.7.0 : vrai si les deux instants tombent le même jour civil.
+bool _memeJour(DateTime a, DateTime b) =>
+    a.year == b.year && a.month == b.month && a.day == b.day;
 
 /// Écran principal : résumé de la journée + liste des repas.
 class AccueilEcran extends StatelessWidget {
@@ -204,6 +210,11 @@ class _Contenu extends StatelessWidget {
           _CarteResume(
             total: journal.total,
             reglages: journal.reglages,
+            // Compteurs pas/étages : affichés seulement pour la journée
+            // en cours (pas de sens sur une date passée feuilletée).
+            sante: _memeJour(journal.jour, DateTime.now())
+                ? context.watch<Activites>().compteursJour
+                : null,
           ),
           const SizedBox(height: 8),
           // Bouton d'ajout toujours visible (au-delà du bouton flottant),
@@ -424,7 +435,11 @@ class _CarteResume extends StatelessWidget {
   final ValeursNutritionnelles total;
   final Reglages reglages;
 
-  const _CarteResume({required this.total, required this.reglages});
+  /// Compteurs pas/étages du jour (null : pas de source santé disponible).
+  final CompteursJour? sante;
+
+  const _CarteResume(
+      {required this.total, required this.reglages, this.sante});
 
   @override
   Widget build(BuildContext context) {
@@ -481,6 +496,33 @@ class _CarteResume extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 14),
+            // Compteurs pas/étages du jour, lus depuis Health Connect
+            // (ex. montre Garmin) : ligne discrète, seulement si l'un
+            // des deux est non nul.
+            if (sante != null && (sante!.pas > 0 || sante!.etages > 0)) ...[
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  Icon(Icons.directions_walk,
+                      size: 16, color: Colors.grey.shade600),
+                  const SizedBox(width: 4),
+                  Text(
+                    '${formatEntier(sante!.pas)} pas',
+                    style: TextStyle(
+                        fontSize: 13, color: Colors.grey.shade600),
+                  ),
+                  const SizedBox(width: 12),
+                  Icon(Icons.stairs, size: 16, color: Colors.grey.shade600),
+                  const SizedBox(width: 4),
+                  Text(
+                    '${formatEntier(sante!.etages)} étages',
+                    style: TextStyle(
+                        fontSize: 13, color: Colors.grey.shade600),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+            ],
             Row(
               children: [
                 _Macro(

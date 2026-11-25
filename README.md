@@ -25,6 +25,7 @@ flowchart LR
 - ➕ Ajout manuel **intégré à l'écran d'ajout** (champ + suggestions de la base + « Saisie libre »), sans boîte de dialogue bloquante
 - 📊 Journal quotidien : total vs objectifs (calories, protéines, glucides, lipides), navigation entre les jours ; **un repas saisi depuis la page d'une journée est daté de cette journée** (v0.6.2 : fini le dîner d'hier enregistré « aujourd'hui »), la journée est visible et modifiable dans l'écran d'ajout, et **la date d'un repas se corrige depuis l'écran de modification** (l'heure enregistrée est conservée : les étiquettes Petit-déjeuner/Déjeuner/Collation/Dîner suffisent)
 - 🧭 Barre d'accueil épurée (v0.6.4) : tiroir ☰ pour la navigation (Progression & IMC, Activités, Plan, Réglages…) et un bouton direct **Aujourd'hui** pour revenir à la journée en cours — l'ancien menu ⋮, qui doublonnait le tiroir, a été retiré
+- ⌚ **Activités & compteurs Garmin** (v0.7.0) : les séances enregistrées sur la montre **sont importées automatiquement** à l'ouverture de l'app — c'est le partage **Health Connect** de Garmin Connect (Android 14+, « Partage Health Connect » à activer dans Garmin Connect) qui fournit aussi les **pas et les étages du jour**, affichés en une ligne discrète sur la carte résumé de l'accueil ; chaque séance importée porte un badge montre, calories Garmin reprises telles quelles (sinon recalcul MET Azimiam), doublons évités par l'identifiant Health Connect, saisie manuelle inchangée
 - 💾 SQLite local, réglages persistés (clé API, modèle, objectifs, profil)
 - ⚖️ **Profil & IMC** : taille, âge, sexe, activité et objectif de poids (maintien / perte / prise avec poids cible) ; calcul automatique des objectifs caloriques (métabolisme de base Mifflin-St Jeor × facteur d'activité, ajusté à l'objectif avec planchers de sécurité 1 200 / 1 500 kcal) et du poids idéal (formule de Devine)
 - 📈 **Suivi des progressions** : pesées historisées (une par jour, SQLite), courbe de poids, catégorie IMC (OMS), progression vers le poids cible (% parcouru, durée estimée à ~7 700 kcal/kg), moyennes d'apports 7/30 jours et graphique des calories des 14 derniers jours vs objectif (dessiné nativement, sans dépendance graphique)
@@ -59,19 +60,20 @@ lib/
     service_reglages.dart     # SharedPreferences : clé API, objectifs, profil
     service_export.dart       # export CSV du journal + pesées + activités (testé)
     service_activites.dart    # catalogue de types + calcul kcal MET/vitesse/dénivelé (testé)
+    service_sante.dart        # Health Connect : séances, pas, étages, dédoublonnage (testé)
   state/
     journal.dart              # ChangeNotifier : journée, totaux, erreurs
     progression.dart          # ChangeNotifier : pesées, totaux 30 j, réglages
-    activites.dart            # ChangeNotifier : séances sportives, totaux 7 j
+    activites.dart            # ChangeNotifier : séances sportives, totaux 7 j ; v0.7.0 : import auto Health Connect + compteurs pas/étages
     catalogue.dart            # ChangeNotifier : base + aliments perso (doublons, ajout, suppression)
   screens/
-    accueil_ecran.dart        # résumé + liste des repas + navigation jours + menu
+    accueil_ecran.dart        # résumé + liste des repas + navigation jours + compteurs pas/étages (v0.7.0)
     ajout_repas_ecran.dart    # photo → IA → correction → enregistrement + ajout manuel inline
     modifier_repas_ecran.dart # modification d'un repas : type, lignes, total
     catalogue_ecran.dart      # catalogue complet : recherche multi-mots, ajout d'aliments perso
     progression_ecran.dart    # IMC, courbe de poids, apports 7/14/30 jours
     plan_ecran.dart           # objectifs globaux du jour vs réalisé (sans plats imposés)
-    activites_ecran.dart      # déclaration des activités sportives + historique
+    activites_ecran.dart      # activités sportives + historique ; badge montre ou Health Connect (v0.7.0)
     a_propos_ecran.dart       # écran « À propos » (version embarquée)
     reglages_ecran.dart       # clé API, modèle, profil, objectifs (+ calcul auto)
 test/
@@ -85,6 +87,7 @@ test/
   widget_accueil_test.dart    # tests widget : tiroir ☰, bouton Aujourd'hui et navigation
   widget_ajout_test.dart      # tests widget : ajout manuel inline (suggestion base / saisie libre)
   service_activites_test.dart # calculs kcal : MET, vitesse, dénivelé, catalogue
+  service_sante_test.dart    # Health Connect : mapping types, dédoublonnage, calories, formatage
   widget_activites_test.dart  # tests widget : écran Activités + dialogue de déclaration
   widget_catalogue_test.dart  # tests widget : catalogue (compteur base+perso, multi-mots, fiche d'ajout)
   widget_dialog_nouvel_aliment_test.dart  # tests widget : fiche de création (succès, doublon, pré-remplissage)

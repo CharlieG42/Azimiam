@@ -161,4 +161,48 @@ void main() {
 
     expect(find.textContaining('Aucune activité déclarée'), findsOneWidget);
   });
+
+  testWidgets('badge montre pour les séances importées depuis Garmin '
+      '(v0.7.0)', (tester) async {
+    tester.view.physicalSize = const Size(800, 2400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final maintenant = DateTime.now();
+    final activites = Activites();
+    activites.liste = [
+      // Séance importée depuis la montre Garmin : badge montre.
+      ActiviteSport(
+        moment: maintenant.subtract(const Duration(hours: 2)),
+        type: 'course',
+        dureeMin: 45,
+        distanceKm: 8,
+        kcal: 520,
+        cleExterne: 'uuid-hc-1',
+        source: 'com.garmin.android.apps.connectmobile',
+      ),
+      // Séance importée d'une autre source : badge Health Connect.
+      ActiviteSport(
+        moment: maintenant.subtract(const Duration(days: 1)),
+        type: 'marche',
+        dureeMin: 30,
+        kcal: 160,
+        cleExterne: 'uuid-hc-2',
+        source: 'com.autre.app.sport',
+      ),
+      // Saisie manuelle : aucun badge.
+      seance(maintenant.subtract(const Duration(days: 2)), 'velo', 60, 20, 300,
+          250),
+    ];
+    activites.infoImport = '2 séances importées depuis Health Connect';
+
+    await tester.pumpWidget(hote(activites));
+    await tester.pumpAndSettle();
+
+    expect(find.byIcon(Icons.watch_outlined), findsOneWidget);
+    expect(find.byIcon(Icons.health_and_safety_outlined), findsOneWidget);
+    expect(
+        find.textContaining('séances importées depuis Health Connect'),
+        findsOneWidget);
+  });
 }

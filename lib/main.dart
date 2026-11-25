@@ -33,7 +33,13 @@ class AzimiamApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(create: (_) => Journal()..charger()),
         ChangeNotifierProvider(create: (_) => Progression()..charger()),
-        ChangeNotifierProvider(create: (_) => Activites()..charger()),
+        // v0.7.0 : l'import automatique des séances santé (Health Connect,
+        // ex. Garmin) au démarrage ne bloque jamais : silencieux et sans
+        // autorisation accordée, il ne fait rien.
+        ChangeNotifierProvider(
+            create: (_) => Activites()
+              ..charger()
+              ..importAuto()),
         ChangeNotifierProvider(create: (_) => Catalogue()..charger()),
       ],
       child: MaterialApp(
