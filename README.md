@@ -24,6 +24,7 @@ flowchart LR
 - 🥗 Mini-base locale de ~120 aliments courants avec alias de recherche (accents, synonymes), complétée par les aliments que vous ajoutez
 - ➕ Ajout manuel **intégré à l'écran d'ajout** (champ + suggestions de la base + « Saisie libre »), sans boîte de dialogue bloquante
 - 📊 Journal quotidien : total vs objectifs (calories, protéines, glucides, lipides), navigation entre les jours ; **un repas saisi depuis la page d'une journée est daté de cette journée** (v0.6.2 : fini le dîner d'hier enregistré « aujourd'hui »), la journée est visible et modifiable dans l'écran d'ajout, et **la date d'un repas se corrige depuis l'écran de modification** (l'heure enregistrée est conservée : les étiquettes Petit-déjeuner/Déjeuner/Collation/Dîner suffisent)
+- 🧭 Barre d'accueil épurée (v0.6.4) : tiroir ☰ pour la navigation (Progression & IMC, Activités, Plan, Réglages…) et un bouton direct **Aujourd'hui** pour revenir à la journée en cours — l'ancien menu ⋮, qui doublonnait le tiroir, a été retiré
 - 💾 SQLite local, réglages persistés (clé API, modèle, objectifs, profil)
 - ⚖️ **Profil & IMC** : taille, âge, sexe, activité et objectif de poids (maintien / perte / prise avec poids cible) ; calcul automatique des objectifs caloriques (métabolisme de base Mifflin-St Jeor × facteur d'activité, ajusté à l'objectif avec planchers de sécurité 1 200 / 1 500 kcal) et du poids idéal (formule de Devine)
 - 📈 **Suivi des progressions** : pesées historisées (une par jour, SQLite), courbe de poids, catégorie IMC (OMS), progression vers le poids cible (% parcouru, durée estimée à ~7 700 kcal/kg), moyennes d'apports 7/30 jours et graphique des calories des 14 derniers jours vs objectif (dessiné nativement, sans dépendance graphique)
@@ -81,7 +82,7 @@ test/
   service_export_test.dart    # export CSV
   version_test.dart           # format de la version embarquée
   mini_base_test.dart         # intégrité de la mini-base
-  widget_accueil_test.dart    # tests widget : bouton menu (tiroir ☰ + popup ⋮) et navigation
+  widget_accueil_test.dart    # tests widget : tiroir ☰, bouton Aujourd'hui et navigation
   widget_ajout_test.dart      # tests widget : ajout manuel inline (suggestion base / saisie libre)
   service_activites_test.dart # calculs kcal : MET, vitesse, dénivelé, catalogue
   widget_activites_test.dart  # tests widget : écran Activités + dialogue de déclaration
