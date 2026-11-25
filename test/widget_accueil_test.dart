@@ -7,7 +7,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:azimiam/screens/a_propos_ecran.dart';
 import 'package:azimiam/screens/accueil_ecran.dart';
 import 'package:azimiam/screens/ajout_repas_ecran.dart';
-import 'package:azimiam/screens/plan_ecran.dart';
 import 'package:azimiam/state/catalogue.dart';
 import 'package:azimiam/state/journal.dart';
 import 'package:azimiam/state/progression.dart';
@@ -101,14 +100,33 @@ void main() {
     expect(find.text('Mardi 24 novembre'), findsOneWidget);
   });
 
-  testWidgets('le menu ⋮ ouvre le plan nutritionnel', (tester) async {
-    await tester.pumpWidget(pompe());
+  testWidgets('le bouton Aujourd\u2019hui recentre sur la journée en cours '
+      '(v0.6.4)', (tester) async {
+    final journal = Journal()..jour = DateTime(2026, 11, 24);
+    await tester.pumpWidget(MultiProvider(
+      providers: [
+        ChangeNotifierProvider<Journal>.value(value: journal),
+        ChangeNotifierProvider(create: (_) => Progression()),
+        ChangeNotifierProvider(create: (_) => Catalogue()),
+      ],
+      child: const MaterialApp(home: AccueilEcran()),
+    ));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byIcon(Icons.more_vert));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Plan nutritionnel').last);
-    await tester.pumpAndSettle();
-    expect(find.byType(PlanEcran), findsOneWidget);
+    // Le popup ⋮ a disparu au profit d\u2019un bouton direct.
+    expect(find.byIcon(Icons.more_vert), findsNothing);
+    expect(find.byIcon(Icons.today), findsOneWidget);
+
+    await tester.tap(find.byIcon(Icons.today));
+    // Pas de pumpAndSettle ici : charger() affiche un spinner pendant que
+    // SQLite échoue en silence (MissingPluginException attendue en test).
+    // L'affectation de journal.jour est synchrone, elle est déjà effective.
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+
+    final maintenant = DateTime.now();
+    expect(journal.jour.year, maintenant.year);
+    expect(journal.jour.month, maintenant.month);
+    expect(journal.jour.day, maintenant.day);
   });
 }

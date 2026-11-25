@@ -160,53 +160,13 @@ class AccueilEcran extends StatelessWidget {
             onPressed: () =>
                 journal.changerJour(journal.jour.add(const Duration(days: 1))),
           ),
-          PopupMenuButton<String>(
-            tooltip: 'Plus d\u2019options',
-            icon: const Icon(Icons.more_vert),
-            onSelected: (valeur) {
-              final nav = Navigator.of(context);
-              switch (valeur) {
-                case 'aujourdhui':
-                  journal.changerJour(DateTime.now());
-                  break;
-                case 'progression':
-                  nav.push(
-                    MaterialPageRoute(builder: (_) => const ProgressionEcran()),
-                  );
-                  break;
-                case 'plan':
-                  nav.push(
-                    MaterialPageRoute(builder: (_) => const PlanEcran()),
-                  );
-                  break;
-                case 'reglages':
-                  nav.push(
-                    MaterialPageRoute(builder: (_) => const ReglagesEcran()),
-                  );
-                  break;
-              }
-            },
-            // Entrées texte simples (style standard du PopupMenu) : pas de
-            // mise en page personnalisée, donc aucun risque de débordement,
-            // et une zone tactile fiable sur toute la largeur de l'entrée.
-            itemBuilder: (_) => const [
-              PopupMenuItem(
-                value: 'aujourdhui',
-                child: Text('Aujourd\'hui'),
-              ),
-              PopupMenuItem(
-                value: 'progression',
-                child: Text('Progression & IMC'),
-              ),
-              PopupMenuItem(
-                value: 'plan',
-                child: Text('Plan nutritionnel'),
-              ),
-              PopupMenuItem(
-                value: 'reglages',
-                child: Text('Réglages'),
-              ),
-            ],
+          // Le menu ⋮ a été retiré (v0.6.4) : ses entrées doublonnaient le
+          // tiroir ☰. Seule l'action « Aujourd'hui » méritait un accès
+          // direct, elle devient un bouton à part entière.
+          IconButton(
+            tooltip: 'Aujourd\u2019hui',
+            icon: const Icon(Icons.today),
+            onPressed: () => journal.changerJour(DateTime.now()),
           ),
         ],
       ),
