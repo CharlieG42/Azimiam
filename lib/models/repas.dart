@@ -56,3 +56,27 @@ class Repas {
   ValeursNutritionnelles get total => lignes.fold(
       ValeursNutritionnelles.vide, (acc, l) => acc.ajouter(l.valeurs));
 }
+
+/// Le jour d'[instant], à minuit : sert de clé de journée, indépendamment
+/// de l'heure.
+DateTime dateSeule(DateTime instant) =>
+    DateTime(instant.year, instant.month, instant.day);
+
+/// Le jour demandé, à l'heure qu'il est au moment de l'appel.
+///
+/// Utilisé pour enregistrer un repas sur la journée AFFICHÉE (qui peut
+/// être passée ou future) tout en gardant une heure plausible, plutôt que
+/// de dater le repas « maintenant » quoi qu'il arrive. Si [jour] est null,
+/// renvoie simplement l'instant présent.
+DateTime instantPour(DateTime? jour) {
+  final maintenant = DateTime.now();
+  if (jour == null) return maintenant;
+  return DateTime(
+    jour.year,
+    jour.month,
+    jour.day,
+    maintenant.hour,
+    maintenant.minute,
+    maintenant.second,
+  );
+}

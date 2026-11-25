@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:intl/intl.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
@@ -24,7 +25,11 @@ import '../widgets/dialog_ligne.dart';
 /// Aucune valeur nutritionnelle ne vient jamais de l'IA : uniquement de la
 /// base locale ou de la saisie manuelle.
 class AjoutRepasEcran extends StatefulWidget {
-  const AjoutRepasEcran({super.key});
+  /// Journée sur laquelle enregistrer le repas : par défaut celle affichée
+  /// par l'accueil (passée ou future possible), « maintenant » sinon.
+  final DateTime? jour;
+
+  const AjoutRepasEcran({super.key, this.jour});
 
   @override
   State<AjoutRepasEcran> createState() => _AjoutRepasEcranState();
@@ -32,6 +37,9 @@ class AjoutRepasEcran extends StatefulWidget {
 
 class _AjoutRepasEcranState extends State<AjoutRepasEcran> {
   String _type = 'Déjeuner';
+  // Journée ciblée par l'enregistrement (à minuit) : celle reçue de
+  // l'accueil, modifiable via la progression en forme de calendrier.
+  late DateTime _jour = dateSeule(widget.jour ?? DateTime.now());
   final List<LigneRepas> _lignes = [];
   final ImagePicker _picker = ImagePicker();
 
@@ -228,6 +236,28 @@ class _AjoutRepasEcranState extends State<AjoutRepasEcran> {
 
   // ------------------------------------------------------------ Enregistrement
 
+  /// Libellé de la journée ciblée, ex. « Mardi 24 novembre ».
+  String _libelleJour() {
+    final brut = DateFormat('EEEE d MMMM', 'fr_FR').format(_jour);
+    return brut[0].toUpperCase() + brut.substring(1);
+  }
+
+  Future<void> _changerJour() async {
+    final aujourdHui = dateSeule(DateTime.now());
+    // L'utilisateur peut viser demain (saisie anticipée), mais pas plus.
+    final derniere =
+        _jour.isAfter(aujourdHui) ? _jour : aujourdHui.add(const Duration(days: 1));
+    final choisi = await showDatePicker(
+      context: context,
+      initialDate: _jour,
+      firstDate: DateTime(2000),
+      lastDate: derniere,
+      helpText: 'Jour du repas',
+    );
+    if (choisi == null || !mounted) return;
+    setState(() => _jour = dateSeule(choisi));
+  }
+
   Future<void> _enregistrer() async {
     if (_lignes.isEmpty) return;
     final journal = context.read<Journal>();
@@ -238,7 +268,9 @@ class _AjoutRepasEcranState extends State<AjoutRepasEcran> {
     }
 
     final repas = Repas(
-      prisLe: DateTime.now(),
+      // La journée choisie, à l'heure qu'il est : le repas d'hier soir
+      // enregistré depuis la page d'hier reste DATED hier.
+      prisLe: instantPour(_jour),
       type: _type,
       photo: photoSauvee,
       lignes: List<LigneRepas>.of(_lignes),
@@ -296,6 +328,21 @@ class _AjoutRepasEcranState extends State<AjoutRepasEcran> {
                     onSelected: (_) => setState(() => _type = type),
                   ),
               ],
+            ),
+            const SizedBox(height: 12),
+
+            // ----- Journée du repas -----
+            // Le repas est enregistré sur la journée AFFICHÉE par l'accueil,
+            // pas forcément aujourd'hui : cette puce le rend visible et
+            // modifiable (retour du bug « repas d'hier daté aujourd'hui »).
+            Align(
+              alignment: Alignment.centerLeft,
+              child: OutlinedButton.icon(
+                key: const Key('boutonJourRepas'),
+                onPressed: _changerJour,
+                icon: const Icon(Icons.calendar_today_outlined, size: 18),
+                label: Text(_libelleJour()),
+              ),
             ),
             const SizedBox(height: 12),
 

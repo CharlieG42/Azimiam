@@ -79,6 +79,28 @@ void main() {
     expect(find.byType(AjoutRepasEcran), findsOneWidget);
   });
 
+  testWidgets(
+      'l\u2019ajout depuis une journ\u00e9e pass\u00e9e propose cette journ\u00e9e (v0.6.2)',
+      (tester) async {
+    // L'accueil affiche hier : le repas doit être DATÉ d'hier, pas
+    // d'aujourd'hui (retour du bug v0.6.1 sur la date des repas).
+    final journal = Journal()..jour = DateTime(2026, 11, 24);
+    await tester.pumpWidget(MultiProvider(
+      providers: [
+        ChangeNotifierProvider<Journal>.value(value: journal),
+        ChangeNotifierProvider(create: (_) => Progression()),
+        ChangeNotifierProvider(create: (_) => Catalogue()),
+      ],
+      child: const MaterialApp(home: AccueilEcran()),
+    ));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('boutonAjouterRepas')));
+    await tester.pumpAndSettle();
+    expect(find.byType(AjoutRepasEcran), findsOneWidget);
+    expect(find.text('Mardi 24 novembre'), findsOneWidget);
+  });
+
   testWidgets('le menu ⋮ ouvre le plan nutritionnel', (tester) async {
     await tester.pumpWidget(pompe());
     await tester.pumpAndSettle();

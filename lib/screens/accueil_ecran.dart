@@ -218,7 +218,11 @@ class AccueilEcran extends StatelessWidget {
         label: const Text('Ajouter un repas'),
         onPressed: () => Navigator.push(
           context,
-          MaterialPageRoute(builder: (_) => const AjoutRepasEcran()),
+          // Le repas est daté de la journée AFFICHÉE (hier inclus), pas de
+          // « maintenant » : sinon le dîner d'hier se retrouvait daté du
+          // jour où on le saisit.
+          MaterialPageRoute(
+              builder: (_) => AjoutRepasEcran(jour: journal.jour)),
         ),
       ),
     );
@@ -250,7 +254,9 @@ class _Contenu extends StatelessWidget {
             label: const Text('Ajouter un repas'),
             onPressed: () => Navigator.push(
               context,
-              MaterialPageRoute(builder: (_) => const AjoutRepasEcran()),
+              // Idem bouton flottant : la journée affichée est transmise.
+              MaterialPageRoute(
+                  builder: (_) => AjoutRepasEcran(jour: journal.jour)),
             ),
           ),
           const SizedBox(height: 8),
