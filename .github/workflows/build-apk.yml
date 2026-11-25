@@ -29,24 +29,7 @@ jobs:
         run: flutter pub get
 
       - name: Analyse statique (non bloquante, infos non fatals)
-        run: |
-          # Diagnostic temporaire (v0.7.0) : la sortie d'analyze est capturée
-          # et remontée en annotations + summary du run (public), car le log
-          # complet n'est pas accessible sans connexion.
-          set +e
-          flutter analyze --no-fatal-infos > analyze.log 2>&1
-          CODE=$?
-          cat analyze.log
-          while IFS= read -r ligne; do
-            echo "::error::[analyze] $ligne"
-          done <<< "$(tail -n 10 analyze.log)"
-          {
-            echo "# Diagnostic analyze (exit $CODE)"
-            echo '~~~'
-            cat analyze.log
-            echo '~~~'
-          } >> "$GITHUB_STEP_SUMMARY"
-          exit $CODE
+        run: flutter analyze --no-fatal-infos
 
       - name: Tests (bloquants)
         run: flutter test

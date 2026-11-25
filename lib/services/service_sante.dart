@@ -195,7 +195,10 @@ class SourceSanteHealth implements SourceSante {
       for (final point in points) {
         final valeur = point.value;
         if (valeur is! WorkoutHealthValue) continue;
-        final cleExterne = point.uuid;
+        // uuid est typé non nullable dans l'API du plugin : le cast
+        // évite le warning analyze (bloquant en CI) sans perdre la
+        // défense à l'exécution contre une valeur null de la plateforme.
+        final cleExterne = point.uuid as String?;
         if (cleExterne == null || cleExterne.isEmpty) continue;
         // Les calories ne sont reprises que si la source les exprime
         // en kilocalories (kcal) : toute autre unité est ignorée et
