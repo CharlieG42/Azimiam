@@ -23,13 +23,13 @@ flowchart LR
 - ✏️ Correction rapide : quantité en direct, édition nom + valeurs / 100 g, suppression de ligne
 - 🥗 Mini-base locale de ~120 aliments courants avec alias de recherche (accents, synonymes), complétée par les aliments que vous ajoutez
 - ➕ Ajout manuel **intégré à l'écran d'ajout** (champ + suggestions de la base + « Saisie libre »), sans boîte de dialogue bloquante
-- 📊 Journal quotidien : total vs objectifs (calories, protéines, glucides, lipides), navigation entre les jours
+- 📊 Journal quotidien : total vs objectifs (calories, protéines, glucides, lipides), navigation entre les jours ; **un repas saisi depuis la page d'une journée est daté de cette journée** (v0.6.2 : fini le dîner d'hier enregistré « aujourd'hui »), la journée est visible et modifiable dans l'écran d'ajout, et **la date et l'heure d'un repas se corrigent depuis l'écran de modification**
 - 💾 SQLite local, réglages persistés (clé API, modèle, objectifs, profil)
 - ⚖️ **Profil & IMC** : taille, âge, sexe, activité et objectif de poids (maintien / perte / prise avec poids cible) ; calcul automatique des objectifs caloriques (métabolisme de base Mifflin-St Jeor × facteur d'activité, ajusté à l'objectif avec planchers de sécurité 1 200 / 1 500 kcal) et du poids idéal (formule de Devine)
 - 📈 **Suivi des progressions** : pesées historisées (une par jour, SQLite), courbe de poids, catégorie IMC (OMS), progression vers le poids cible (% parcouru, durée estimée à ~7 700 kcal/kg), moyennes d'apports 7/30 jours et graphique des calories des 14 derniers jours vs objectif (dessiné nativement, sans dépendance graphique)
 - 📅 **Plan nutritionnel** : fixe les **objectifs globaux** de la journée (kcal, protéines, glucides, lipides) et affiche la progression réelle du jour (réalisé / objectif / reste) — **sans imposer de plats précis**
 - 🏃 **Activités sportives** : déclaration d'une séance (type parmi 16, date et heure, durée, distance et dénivelé positif le cas échéant), **calories dépensées calculées automatiquement** (MET du type ajusté à la vitesse pour la course et le vélo, travail de montée ajouté au dénivelé, sur la base de la dernière pesée) ou saisies à la main ; historique groupé par jour, résumé des 7 derniers jours (séances, durée, km, kcal)
-- ⭐ Favoris & repas récurrents (« recopier le déjeuner d'hier ») : étoile sur la carte du repas, section « Repas fréquents » sur l'accueil, recréation en un appui (table SQLite `favoris`) ; catalogue d'aliments avec recherche instantanée **multi-mots** insensible aux accents (« pommes terre » retrouve « Pommes de terre cuites ») et **aliments personnels persistants** (bouton « + » du catalogue : nom, alias, valeurs / 100 g, stockés dans SQLite `aliments_perso`, supprimables d'un swipe, immédiatement disponibles dans la recherche de l'écran d'ajout et le rapprochement IA)
+- ⭐ Favoris & repas récurrents (« recopier le déjeuner d'hier ») : étoile sur la carte du repas, section « Repas fréquents » sur l'accueil, recréation en un appui sur la journée affichée (table SQLite `favoris`) ; catalogue d'aliments avec recherche instantanée **multi-mots** insensible aux accents (« pommes terre » retrouve « Pommes de terre cuites ») et **aliments personnels persistants** (bouton « + » du catalogue : nom, alias, valeurs / 100 g, stockés dans SQLite `aliments_perso`, supprimables d'un swipe, immédiatement disponibles dans la recherche de l'écran d'ajout et le rapprochement IA)
 - 📤 Export CSV du journal, des pesées et des activités sportives (dossier `Téléchargements/Azimiam`)
 - ℹ️ Menu « À propos » : version embarquée telle que définie dans le `pubspec.yaml` (ex. `0.2.0-pr8+25` en PR, `0.2.0+25` sur main), principe de l'app et avertissement
 - 🎨 Icône d'app dédiée (assiette + couverts sur fond vert) : PNG mipmap 48→192 px + icône adaptative vectorielle (Android 8+)
@@ -87,6 +87,8 @@ test/
   widget_activites_test.dart  # tests widget : écran Activités + dialogue de déclaration
   widget_catalogue_test.dart  # tests widget : catalogue (compteur base+perso, multi-mots, fiche d'ajout)
   widget_dialog_nouvel_aliment_test.dart  # tests widget : fiche de création (succès, doublon, pré-remplissage)
+  repas_test.dart             # helpers de date (dateSeule, instantPour jour affiché)
+  widget_modifier_repas_test.dart  # tests widget : date et heure éditables du repas
 android/                       # coque Android versionnée (signature release configurée)
 .github/workflows/build-apk.yml  # CI : tests, APK signé, Release GitHub
 ```

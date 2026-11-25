@@ -92,10 +92,11 @@ class Journal extends ChangeNotifier {
     await charger();
   }
 
-  /// Recrée aujourd'hui un repas à partir d'un favori.
+  /// Recrée un repas à partir d'un favori, sur la journée affichée
+  /// (à l'heure qu'il est au moment du clic).
   Future<void> recreerFavori(FavoriRepas favori) async {
     await ajouter(Repas(
-      prisLe: DateTime.now(),
+      prisLe: instantPour(jour),
       type: favori.type,
       lignes: _copieLignes(favori.lignes),
     ));

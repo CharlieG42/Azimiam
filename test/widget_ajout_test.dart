@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:provider/provider.dart';
@@ -15,7 +16,7 @@ void main() {
     await initializeDateFormatting('fr_FR');
   });
 
-  Widget pompe() {
+  Widget pompe({DateTime? jour}) {
     // Catalogue pré-rempli avec la base embarquée, sans passer par la
     // base de données (pas de SQLite dans les tests widget).
     final catalogue = Catalogue()..tous = BaseAliments.tous;
@@ -25,7 +26,17 @@ void main() {
         // L'écran d'ajout cherche dans le catalogue complet (base + perso).
         ChangeNotifierProvider<Catalogue>.value(value: catalogue),
       ],
-      child: const MaterialApp(home: AjoutRepasEcran()),
+      // Localisations comme dans la vraie app : le sélecteur de date
+      // (showDatePicker) en dépend.
+      child: MaterialApp(
+        localizationsDelegates: const [
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: const [Locale('fr', 'FR')],
+        home: AjoutRepasEcran(jour: jour),
+      ),
     );
   }
 
@@ -121,6 +132,36 @@ void main() {
     final champNom =
         tester.widget<TextField>(find.byKey(const Key('champNomAliment')));
     expect(champNom.controller?.text, 'Ma recette maison');
+  });
+
+  testWidgets(
+      'la journée transmise (ex. veille) s\'affiche et sera celle du repas '
+      '(v0.6.2)', (tester) async {
+    await tester.pumpWidget(pompe(jour: DateTime(2026, 11, 24)));
+    await tester.pumpAndSettle();
+
+    // La puce de journée montre le jour demandé, pas « aujourd'hui ».
+    expect(find.byKey(const Key('boutonJourRepas')), findsOneWidget);
+    expect(find.text('Mardi 24 novembre'), findsOneWidget);
+  });
+
+  testWidgets('la journée du repas se change via le calendrier (v0.6.2)',
+      (tester) async {
+    await tester.pumpWidget(pompe(jour: DateTime(2026, 11, 24)));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('boutonJourRepas')));
+    await tester.pumpAndSettle();
+    expect(find.byType(DatePickerDialog), findsOneWidget);
+
+    // Choix du 25 du mois affiché, puis validation.
+    await tester.tap(find.text('25'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('OK'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(DatePickerDialog), findsNothing);
+    expect(find.text('Mercredi 25 novembre'), findsOneWidget);
   });
 }
 
