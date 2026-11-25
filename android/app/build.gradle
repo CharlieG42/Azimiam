@@ -30,7 +30,9 @@ android {
 
     defaultConfig {
         applicationId = "wildzimut.azimiam"
-        minSdk = flutter.minSdkVersion
+        // v0.7.0 : 26 au lieu de flutter.minSdkVersion (21) exigé par le
+        // plugin health pour lire Health Connect (Garmin Connect).
+        minSdk = 26
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName

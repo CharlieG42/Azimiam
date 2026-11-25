@@ -21,6 +21,17 @@ class ActiviteSport {
   /// Calories dépensées (kcal).
   final double kcal;
 
+  /// Clé externe (uuid Health Connect) si la séance vient d'une source
+  /// santé, null pour une saisie manuelle. Sert à ne pas la réimporter.
+  final String? cleExterne;
+
+  /// Origine de la séance (nom du paquet, ex. com.garmin…) si importée,
+  /// null pour une saisie manuelle. Affichée comme badge « montre ».
+  final String? source;
+
+  /// Vrai si la séance a été importée depuis une source santé externe.
+  bool get importee => cleExterne != null && cleExterne!.isNotEmpty;
+
   const ActiviteSport({
     this.id,
     required this.moment,
@@ -29,5 +40,7 @@ class ActiviteSport {
     this.distanceKm,
     this.deniveleM,
     required this.kcal,
+    this.cleExterne,
+    this.source,
   });
 }
