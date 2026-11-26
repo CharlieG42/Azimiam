@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/foundation.dart';
 
 import '../models/activite.dart';
@@ -149,6 +151,27 @@ class Activites extends ChangeNotifier {
       }
     }
     return total;
+  }
+
+  /// Dépense à créditer au budget du [jour] affiché (v0.7.3) : le plus
+  /// élevé des calories actives du jour courant (Health Connect, déjà
+  /// mesurées par la montre) et des kcal des séances de ce jour.
+  ///
+  /// Les calories actives incluent déjà celles des séances : prendre le
+  /// max évite de compter deux fois la même sortie, et les séances (kcal
+  /// montre ou estimation MET) prennent le relais si Health Connect est
+  /// muet ou pour un jour passé feuilleté (compteurs lus au jour courant).
+  double depenseBudget(DateTime jour) {
+    final kcalSeances = depenseJour(jour);
+    final compteurs = compteursJour;
+    if (compteurs == null) return kcalSeances;
+    final maintenant = DateTime.now();
+    if (jour.year != maintenant.year ||
+        jour.month != maintenant.month ||
+        jour.day != maintenant.day) {
+      return kcalSeances;
+    }
+    return math.max(kcalSeances, compteurs.kcalActives);
   }
 
   /// Activités groupées par jour, du plus récent au plus ancien.

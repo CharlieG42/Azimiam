@@ -1,4 +1,5 @@
 import 'package:azimiam/models/activite.dart';
+import 'package:azimiam/services/service_sante.dart';
 import 'package:azimiam/state/activites.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -40,5 +41,55 @@ void main() {
   test('depenseJour avec liste vide (v0.7.2)', () {
     final activites = Activites();
     expect(activites.depenseJour(DateTime(2026, 11, 26)), 0);
+  });
+
+  test('depenseBudget retient le max calories actives / séances (v0.7.3)',
+      () {
+    final aujourdHui = DateTime.now();
+    final a8 = DateTime(aujourdHui.year, aujourdHui.month, aujourdHui.day, 8);
+    // Calories actives plus élevées que les séances : elles sont retenues.
+    final activesForte = Activites()
+      ..liste = [
+        ActiviteSport(
+            moment: a8, type: 'course', dureeMin: 40, kcal: 430),
+      ]
+      ..compteursJour = CompteursJour(pas: 8432, etages: 12, kcalActives: 700);
+    expect(activesForte.depenseBudget(a8), 700);
+    // Séances plus élevées que les calories actives : retenues.
+    final seancesForte = Activites()
+      ..liste = [
+        ActiviteSport(
+            moment: a8, type: 'course', dureeMin: 40, kcal: 820),
+      ]
+      ..compteursJour = CompteursJour(pas: 2100, etages: 1, kcalActives: 210);
+    expect(seancesForte.depenseBudget(a8), 820);
+  });
+
+  test('depenseBudget sans compteurs retombe sur les séances (v0.7.3)', () {
+    final aujourdHui = DateTime.now();
+    final a8 = DateTime(aujourdHui.year, aujourdHui.month, aujourdHui.day, 8);
+    final activites = Activites()
+      ..liste = [
+        ActiviteSport(
+            moment: a8, type: 'course', dureeMin: 45, kcal: 520),
+      ];
+    expect(activites.depenseBudget(a8), 520);
+  });
+
+  test('depenseBudget ignore les calories actives sur un jour passé (v0.7.3)',
+      () {
+    final hier = DateTime.now().subtract(const Duration(days: 1));
+    final activites = Activites()
+      ..liste = [
+        ActiviteSport(
+            moment: DateTime(hier.year, hier.month, hier.day, 9),
+            type: 'velo',
+            dureeMin: 60,
+            kcal: 400),
+      ]
+      // Compteurs du jour courant : illisibles sur la journée d'hier.
+      ..compteursJour = CompteursJour(pas: 8432, etages: 12, kcalActives: 900);
+    expect(activites.depenseBudget(DateTime(hier.year, hier.month, hier.day)),
+        400);
   });
 }

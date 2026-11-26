@@ -3,7 +3,8 @@ import 'package:health/health.dart';
 import '../models/activite.dart';
 import 'service_activites.dart';
 
-/// Compteurs quotidiens relevés dans Health Connect (v0.7.0).
+/// Compteurs quotidiens relevés dans Health Connect (v0.7.0 ; calories
+/// actives ajoutées en v0.7.3).
 class CompteursJour {
   /// Pas de la journée.
   final int pas;
@@ -11,7 +12,12 @@ class CompteursJour {
   /// Étages (volées d'escaliers) gravis dans la journée.
   final int etages;
 
-  const CompteursJour({required this.pas, required this.etages});
+  /// Calories actives de la journée (kcal, ex. 210) : énergie brûlée au-delà
+  /// du métabolisme de base, mesurée par la montre. Inclut déjà les séances.
+  final double kcalActives;
+
+  const CompteursJour(
+      {required this.pas, required this.etages, this.kcalActives = 0});
 }
 
 /// Une séance sportive relevée dans une source santé (Health Connect),
@@ -172,6 +178,7 @@ class SourceSanteHealth implements SourceSante {
     HealthDataType.STEPS,
     HealthDataType.FLIGHTS_CLIMBED,
     HealthDataType.WORKOUT,
+    HealthDataType.ACTIVE_ENERGY_BURNED,
   ];
 
   @override
@@ -260,8 +267,27 @@ class SourceSanteHealth implements SourceSante {
       } catch (_) {
         // Pas d'étages dispo : on renvoie quand même les pas si présents.
       }
-      if (pas == null && etages == 0) return null;
-      return CompteursJour(pas: pas ?? 0, etages: etages);
+      // Calories actives du jour (v0.7.3) : Health Connect les fournit par
+      // petits segments (ex. un par heure côté Garmin) — on les additionne.
+      double kcalActives = 0;
+      try {
+        final points = await _sante.getHealthDataFromTypes(
+          startTime: debut,
+          endTime: fin,
+          types: const [HealthDataType.ACTIVE_ENERGY_BURNED],
+        );
+        for (final point in points) {
+          final valeur = point.value;
+          if (valeur is NumericHealthValue) {
+            kcalActives += valeur.numericValue.toDouble();
+          }
+        }
+      } catch (_) {
+        // Pas de calories actives dispo : les séances prennent le relais.
+      }
+      if (pas == null && etages == 0 && kcalActives == 0) return null;
+      return CompteursJour(
+          pas: pas ?? 0, etages: etages, kcalActives: kcalActives);
     } catch (_) {
       return null;
     }

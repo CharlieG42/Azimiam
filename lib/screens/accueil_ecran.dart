@@ -206,7 +206,12 @@ class _Contenu extends StatelessWidget {
     // courant et dépense sportive du jour affiché (v0.7.2).
     final activites = context.watch<Activites>();
     return RefreshIndicator(
-      onRefresh: () => journal.changerJour(journal.jour),
+      onRefresh: () async {
+        await journal.changerJour(journal.jour);
+        // Les calories actives s'accumulent au fil de la journée : le
+        // tirer-à-rafraîchir relit aussi les compteurs santé (v0.7.3).
+        await activites.rafraichirCompteurs();
+      },
       child: ListView(
         padding: const EdgeInsets.all(12),
         children: [
@@ -218,9 +223,9 @@ class _Contenu extends StatelessWidget {
             sante: _memeJour(journal.jour, DateTime.now())
                 ? activites.compteursJour
                 : null,
-            // Dépense sportive du jour affiché, créditée au budget
-            // calorique (v0.7.2) : kcal des séances de ce jour-là.
-            depense: activites.depenseJour(journal.jour),
+            // Dépense du jour affiché, créditée au budget calorique :
+            // calories actives (jour courant) ou kcal des séances (v0.7.3).
+            depense: activites.depenseBudget(journal.jour),
           ),
           const SizedBox(height: 8),
           // Bouton d'ajout toujours visible (au-delà du bouton flottant),

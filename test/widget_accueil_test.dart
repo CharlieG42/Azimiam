@@ -212,4 +212,27 @@ void main() {
     expect(find.textContaining('dépense sportive'), findsNothing);
     expect(find.textContaining('objectif + sport'), findsNothing);
   });
+
+  testWidgets('calories actives du jour créditées sans séance (v0.7.3)',
+      (tester) async {
+    // Pas de séance, mais Health Connect fournit les calories actives
+    // du jour (montre) : elles créditent le budget comme le ferait du sport.
+    final activites = Activites()
+      ..compteursJour = CompteursJour(pas: 8432, etages: 12, kcalActives: 210);
+    await tester.pumpWidget(MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => Journal()),
+        ChangeNotifierProvider(create: (_) => Progression()),
+        ChangeNotifierProvider<Activites>.value(value: activites),
+        ChangeNotifierProvider(create: (_) => Catalogue()),
+      ],
+      child: const MaterialApp(home: AccueilEcran()),
+    ));
+    await tester.pump();
+
+    expect(find.textContaining('dépense sportive : 210 kcal'), findsOneWidget);
+    expect(
+        find.byIcon(Icons.local_fire_department_outlined), findsOneWidget);
+    expect(find.textContaining('objectif + sport'), findsOneWidget);
+  });
 }
