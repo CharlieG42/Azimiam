@@ -136,6 +136,21 @@ class Activites extends ChangeNotifier {
   double get kcal7Jours =>
       derniers7Jours.fold(0.0, (acc, a) => acc + a.kcal);
 
+  /// Calories sportives dépensées le [jour] demandé (v0.7.2) : somme des
+  /// séances de ce jour civil. Créditée au budget calorique de l'accueil
+  /// (objectif augmenté d'autant le jour affiché).
+  double depenseJour(DateTime jour) {
+    double total = 0;
+    for (final a in liste) {
+      if (a.moment.year == jour.year &&
+          a.moment.month == jour.month &&
+          a.moment.day == jour.day) {
+        total += a.kcal;
+      }
+    }
+    return total;
+  }
+
   /// Activités groupées par jour, du plus récent au plus ancien.
   ///
   /// Chaque élément : date du jour + activités de ce jour (ordre inverse
