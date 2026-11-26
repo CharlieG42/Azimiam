@@ -202,6 +202,9 @@ class _Contenu extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Activités écoutées une seule fois : compteurs pas/étages du jour
+    // courant et dépense sportive du jour affiché (v0.7.2).
+    final activites = context.watch<Activites>();
     return RefreshIndicator(
       onRefresh: () => journal.changerJour(journal.jour),
       child: ListView(
@@ -213,8 +216,11 @@ class _Contenu extends StatelessWidget {
             // Compteurs pas/étages : affichés seulement pour la journée
             // en cours (pas de sens sur une date passée feuilletée).
             sante: _memeJour(journal.jour, DateTime.now())
-                ? context.watch<Activites>().compteursJour
+                ? activites.compteursJour
                 : null,
+            // Dépense sportive du jour affiché, créditée au budget
+            // calorique (v0.7.2) : kcal des séances de ce jour-là.
+            depense: activites.depenseJour(journal.jour),
           ),
           const SizedBox(height: 8),
           // Bouton d'ajout toujours visible (au-delà du bouton flottant),
@@ -438,15 +444,25 @@ class _CarteResume extends StatelessWidget {
   /// Compteurs pas/étages du jour (null : pas de source santé disponible).
   final CompteursJour? sante;
 
+  /// Calories dépensées en sport le jour affiché (0 : aucune séance).
+  /// Créditées au budget calorique : objectif du jour augmenté d'autant.
+  final double depense;
+
   const _CarteResume(
-      {required this.total, required this.reglages, this.sante});
+      {required this.total,
+      required this.reglages,
+      this.sante,
+      this.depense = 0});
 
   @override
   Widget build(BuildContext context) {
-    final ratio = reglages.objectifKcal > 0
-        ? (total.kcal / reglages.objectifKcal).clamp(0.0, 1.0)
+    // Budget du jour : objectif + dépense sportive (v0.7.2). Le sport
+    // du jour augmente le plafond, le dépassement se juge contre lui.
+    final budget = reglages.objectifKcal + depense;
+    final ratio = budget > 0
+        ? (total.kcal / budget).clamp(0.0, 1.0)
         : 0.0;
-    final reste = reglages.objectifKcal - total.kcal;
+    final reste = budget - total.kcal;
 
     return Card(
       elevation: 2,
@@ -469,7 +485,9 @@ class _CarteResume extends StatelessWidget {
                           .copyWith(fontWeight: FontWeight.bold),
                     ),
                     Text(
-                      'sur ${reglages.objectifKcal.round()} kcal d\'objectif',
+                      depense > 0
+                          ? 'sur ${budget.round()} kcal (objectif + sport)'
+                          : 'sur ${reglages.objectifKcal.round()} kcal d\'objectif',
                       style: TextStyle(color: Colors.grey.shade600),
                     ),
                   ],
@@ -516,6 +534,24 @@ class _CarteResume extends StatelessWidget {
                   const SizedBox(width: 4),
                   Text(
                     '${formatEntier(sante!.etages)} étages',
+                    style: TextStyle(
+                        fontSize: 13, color: Colors.grey.shade600),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+            ],
+            // Dépense sportive du jour affiché (v0.7.2), créditée au
+            // budget ci-dessus : ligne discrète avec flamme, seulement
+            // s'il y a eu du sport ce jour-là.
+            if (depense > 0) ...[
+              Row(
+                children: [
+                  Icon(Icons.local_fire_department_outlined,
+                      size: 16, color: Colors.orange.shade700),
+                  const SizedBox(width: 4),
+                  Text(
+                    'dépense sportive : ${depense.round()} kcal',
                     style: TextStyle(
                         fontSize: 13, color: Colors.grey.shade600),
                   ),

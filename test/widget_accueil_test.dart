@@ -4,6 +4,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:azimiam/models/activite.dart';
 import 'package:azimiam/screens/a_propos_ecran.dart';
 import 'package:azimiam/screens/accueil_ecran.dart';
 import 'package:azimiam/screens/ajout_repas_ecran.dart';
@@ -156,5 +157,59 @@ void main() {
     expect(find.text('8 432 pas'), findsOneWidget);
     expect(find.text('12 étages'), findsOneWidget);
     expect(find.byIcon(Icons.stairs), findsOneWidget);
+  });
+
+  testWidgets('dépense sportive du jour créditée au budget calorique '
+      '(v0.7.2)', (tester) async {
+    final maintenant = DateTime.now();
+    final activites = Activites()
+      ..liste = [
+        ActiviteSport(
+          moment: maintenant.subtract(const Duration(hours: 1)),
+          type: 'course',
+          dureeMin: 45,
+          kcal: 520,
+        ),
+        // Séance d'un autre jour : ne doit pas compter dans le budget du jour.
+        ActiviteSport(
+          moment: maintenant.subtract(const Duration(days: 2)),
+          type: 'velo',
+          dureeMin: 60,
+          kcal: 400,
+        ),
+      ];
+    await tester.pumpWidget(MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => Journal()),
+        ChangeNotifierProvider(create: (_) => Progression()),
+        ChangeNotifierProvider<Activites>.value(value: activites),
+        ChangeNotifierProvider(create: (_) => Catalogue()),
+      ],
+      child: const MaterialApp(home: AccueilEcran()),
+    ));
+    await tester.pump();
+
+    expect(find.textContaining('dépense sportive : 520 kcal'), findsOneWidget);
+    expect(
+        find.byIcon(Icons.local_fire_department_outlined), findsOneWidget);
+    // Le sous-titre signale le budget ajusté, pas l'objectif seul.
+    expect(find.textContaining('objectif + sport'), findsOneWidget);
+  });
+
+  testWidgets('pas de ligne dépense sans séance le jour affiché (v0.7.2)',
+      (tester) async {
+    await tester.pumpWidget(MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => Journal()),
+        ChangeNotifierProvider(create: (_) => Progression()),
+        ChangeNotifierProvider(create: (_) => Activites()),
+        ChangeNotifierProvider(create: (_) => Catalogue()),
+      ],
+      child: const MaterialApp(home: AccueilEcran()),
+    ));
+    await tester.pump();
+
+    expect(find.textContaining('dépense sportive'), findsNothing);
+    expect(find.textContaining('objectif + sport'), findsNothing);
   });
 }
