@@ -5,6 +5,8 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:azimiam/models/activite.dart';
+import 'package:azimiam/models/repas.dart';
+import 'package:azimiam/models/valeurs.dart';
 import 'package:azimiam/screens/a_propos_ecran.dart';
 import 'package:azimiam/screens/accueil_ecran.dart';
 import 'package:azimiam/screens/ajout_repas_ecran.dart';
@@ -234,5 +236,40 @@ void main() {
     expect(
         find.byIcon(Icons.local_fire_department_outlined), findsOneWidget);
     expect(find.textContaining('objectif + sport'), findsOneWidget);
+  });
+
+  testWidgets('le type de repas n\'est pas répété dans les cartes (v0.7.4)',
+      (tester) async {
+    // L'en-tête du groupe affiche déjà le type : la carte ne doit
+    // plus le répéter, seulement l'heure du repas.
+    final journal = Journal()
+      ..repas = [
+        Repas(
+          prisLe: DateTime(2026, 11, 26, 13, 18),
+          type: 'Déjeuner',
+          lignes: [
+            LigneRepas(
+              nom: 'Filet de porc',
+              grammes: 250,
+              pour100: ValeursNutritionnelles(
+                  kcal: 160, proteines: 5, glucides: 10, lipides: 2),
+            ),
+          ],
+        ),
+      ];
+    await tester.pumpWidget(MultiProvider(
+      providers: [
+        ChangeNotifierProvider<Journal>.value(value: journal),
+        ChangeNotifierProvider(create: (_) => Progression()),
+        ChangeNotifierProvider(create: (_) => Activites()),
+        ChangeNotifierProvider(create: (_) => Catalogue()),
+      ],
+      child: const MaterialApp(home: AccueilEcran()),
+    ));
+    await tester.pump();
+
+    expect(find.text('Déjeuner'), findsOneWidget);
+    expect(find.textContaining('Déjeuner ·'), findsNothing);
+    expect(find.text('13:18'), findsOneWidget);
   });
 }

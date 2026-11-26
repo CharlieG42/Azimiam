@@ -401,6 +401,9 @@ class _Contenu extends StatelessWidget {
                         padding: const EdgeInsets.only(bottom: 8),
                         child: _CarteRepas(
                           repas: repas,
+                          // Le type est déjà l'en-tête du groupe :
+                          // pas de répétition dans la carte (v0.7.4).
+                          afficherType: false,
                           estFavori: journal.estFavori(repas),
                           onModifier: () => Navigator.push(
                             context,
@@ -635,6 +638,11 @@ class _Macro extends StatelessWidget {
 class _CarteRepas extends StatelessWidget {
   final Repas repas;
   final bool estFavori;
+
+  /// true : la carte affiche « type · heure » (repas hors liste des types,
+  /// sans en-tête de groupe au-dessus). false : juste l'heure, le type
+  /// étant déjà l'en-tête du groupe (v0.7.4).
+  final bool afficherType;
   final VoidCallback onModifier;
   final VoidCallback onSupprimer;
   final VoidCallback onBasculerFavori;
@@ -642,6 +650,7 @@ class _CarteRepas extends StatelessWidget {
   const _CarteRepas({
     required this.repas,
     required this.estFavori,
+    this.afficherType = true,
     required this.onModifier,
     required this.onSupprimer,
     required this.onBasculerFavori,
@@ -672,7 +681,7 @@ class _CarteRepas extends StatelessWidget {
           contentPadding:
               const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           leading: _vignette(repas),
-          title: Text('${repas.type} · $heure'),
+          title: Text(afficherType ? '${repas.type} · $heure' : heure),
           subtitle: Text(
             resume.isEmpty ? 'Repas vide' : resume,
             maxLines: 2,
