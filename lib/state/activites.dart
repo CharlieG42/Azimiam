@@ -83,8 +83,17 @@ class Activites extends ChangeNotifier {
       final candidates = await source.seancesEntre(debut, fin);
       final connues = await _base.clesExternesActivites();
       final nouvelles = seancesNouvelles(candidates, connues);
+      // Poids de référence pour l'estimation MET des séances sans
+      // calories fournies par la montre (v0.7.5) : dernière pesée.
+      double? poidsReference;
+      try {
+        poidsReference = await _base.dernierPoids();
+      } catch (_) {
+        poidsReference = null;
+      }
       for (final seance in nouvelles) {
-        await _base.enregistrerActivite(enActivite(seance));
+        await _base
+            .enregistrerActivite(enActivite(seance, poidsKg: poidsReference));
       }
       if (nouvelles.isNotEmpty) {
         infoImport =
@@ -93,6 +102,29 @@ class Activites extends ChangeNotifier {
       } else if (!silencieux) {
         infoImport = 'Aucune nouvelle séance à importer';
         notifyListeners();
+      }
+      // Pesées de Santé Connect (v0.7.5) : ne remplissent que les jours
+      // sans pesée — une saisie manuelle n'est jamais écrasée. L'échec
+      // de l'import du poids ne remonte jamais.
+      try {
+        final pesees = await source.peseesEntre(debut, fin);
+        final aImporter = peseesAImporter(
+          poidsParJour(pesees),
+          (await _base.historiquePesees())
+              .map((p) => DateTime(p.jour.year, p.jour.month, p.jour.day))
+              .toSet(),
+        );
+        for (final e in aImporter.entries) {
+          await _base.ajouterPesee(e.key, e.value);
+        }
+        if (aImporter.isNotEmpty) {
+          infoImport = (infoImport == null || infoImport!.isEmpty)
+              ? '${aImporter.length} pesée(s) santé ajoutée(s)'
+              : '${infoImport!} ; ${aImporter.length} pesée(s) santé ajoutée(s)';
+          notifyListeners();
+        }
+      } catch (_) {
+        // L'import du poids ne doit jamais bloquer ni alerter.
       }
       await rafraichirCompteurs();
     } catch (e) {

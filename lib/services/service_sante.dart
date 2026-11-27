@@ -57,6 +57,18 @@ class SeanceSante {
   });
 }
 
+/// Une pesée relevée dans une source santé (Health Connect), telle que
+/// journalisée par la montre ou la balance (v0.7.5).
+class PeseeSante {
+  /// Date et heure de la mesure.
+  final DateTime moment;
+
+  /// Poids mesuré, en kilogrammes.
+  final double kg;
+
+  const PeseeSante({required this.moment, required this.kg});
+}
+
 /// Source de données santé : autorisation, séances et compteurs.
 ///
 /// Abstraite pour être simulable dans les tests : seule l'implémentation
@@ -68,6 +80,10 @@ abstract class SourceSante {
 
   /// Séances commençant entre [debut] et [fin]. Liste vide si rien/erreur.
   Future<List<SeanceSante>> seancesEntre(DateTime debut, DateTime fin);
+
+  /// Pesées relevées entre [debut] et [fin] (v0.7.5).
+  /// Liste vide si rien/erreur.
+  Future<List<PeseeSante>> peseesEntre(DateTime debut, DateTime fin);
 
   /// Compteurs (pas, étages) de la journée [jour]. null si indisponible.
   Future<CompteursJour?> compteursJour(DateTime jour);
@@ -139,25 +155,56 @@ List<SeanceSante> seancesNouvelles(
   return nouvelles;
 }
 
+/// Poids par jour civil (v0.7.5) : parmi les pesées d'une source santé,
+/// la dernière mesure de chaque journée (une montre peut en écrire
+/// plusieurs, ex. avant/après entraînement).
+Map<DateTime, double> poidsParJour(List<PeseeSante> pesees) {
+  final parJour = <DateTime, double>{};
+  final dernierMoment = <DateTime, DateTime>{};
+  for (final p in pesees) {
+    final jour = DateTime(p.moment.year, p.moment.month, p.moment.day);
+    final deja = dernierMoment[jour];
+    if (deja == null || p.moment.isAfter(deja)) {
+      dernierMoment[jour] = p.moment;
+      parJour[jour] = p.kg;
+    }
+  }
+  return parJour;
+}
+
+/// Pesées à importer (v0.7.5) : retire de [parJour] les jours déjà
+/// présents dans l'historique Azimiam — une pesée saisie ou corrigée à
+/// la main n'est jamais écrasée par celle de la montre.
+Map<DateTime, double> peseesAImporter(
+    Map<DateTime, double> parJour, Set<DateTime> joursConnus) {
+  return Map.fromEntries(parJour.entries
+      .where((e) => !joursConnus.contains(e.key))
+      .toList());
+}
+
 /// Calories d'une séance importée : celles de la source si elle en fournit,
-/// sinon estimation MET du catalogue Azimiam sur 70 kg.
-double caloriesSeance(SeanceSante seance) {
+/// sinon estimation MET du catalogue Azimiam — sur [poidsKg] quand le poids
+/// est connu (dernière pesée), sinon 70 kg (v0.7.5).
+double caloriesSeance(SeanceSante seance, {double? poidsKg}) {
   final kcal = seance.kcal;
   if (kcal != null && kcal > 0) return kcal;
   return ServiceActivites.calories(
     type: cleAzimiamPour(seance.typeNom),
     dureeMin: seance.dureeMin,
     distanceKm: seance.distanceKm,
+    poidsKg: poidsKg,
   );
 }
 
 /// Convertit une séance santé en [ActiviteSport] enregistrable en base.
-ActiviteSport enActivite(SeanceSante seance) => ActiviteSport(
+/// [poidsKg] : poids de référence pour l'estimation MET (v0.7.5).
+ActiviteSport enActivite(SeanceSante seance, {double? poidsKg}) =>
+    ActiviteSport(
       moment: seance.moment,
       type: cleAzimiamPour(seance.typeNom),
       dureeMin: seance.dureeMin,
       distanceKm: seance.distanceKm,
-      kcal: caloriesSeance(seance),
+      kcal: caloriesSeance(seance, poidsKg: poidsKg),
       cleExterne: seance.cleExterne,
       source: seance.source,
     );
@@ -179,6 +226,7 @@ class SourceSanteHealth implements SourceSante {
     HealthDataType.FLIGHTS_CLIMBED,
     HealthDataType.WORKOUT,
     HealthDataType.ACTIVE_ENERGY_BURNED,
+    HealthDataType.WEIGHT,
   ];
 
   @override
@@ -235,6 +283,29 @@ class SourceSanteHealth implements SourceSante {
         ));
       }
       return seances;
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  @override
+  Future<List<PeseeSante>> peseesEntre(DateTime debut, DateTime fin) async {
+    try {
+      final points = await _sante.getHealthDataFromTypes(
+        startTime: debut,
+        endTime: fin,
+        types: const [HealthDataType.WEIGHT],
+      );
+      final pesees = <PeseeSante>[];
+      for (final point in points) {
+        final valeur = point.value;
+        if (valeur is! NumericHealthValue) continue;
+        final kg = valeur.numericValue.toDouble();
+        // Garde-fou : un poids hors limites évidentes est ignoré.
+        if (kg < 20 || kg > 400) continue;
+        pesees.add(PeseeSante(moment: point.dateFrom, kg: kg));
+      }
+      return pesees;
     } catch (_) {
       return const [];
     }
