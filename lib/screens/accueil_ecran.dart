@@ -6,10 +6,13 @@ import 'package:provider/provider.dart';
 
 import '../models/repas.dart';
 import '../models/valeurs.dart';
+import '../services/service_hydratation.dart';
 import '../services/service_reglages.dart';
 import '../services/service_sante.dart';
 import '../state/activites.dart';
+import '../state/hydratation.dart';
 import '../state/journal.dart';
+import '../state/progression.dart';
 import 'a_propos_ecran.dart';
 import 'activites_ecran.dart';
 import 'ajout_repas_ecran.dart';
@@ -206,6 +209,11 @@ class _Contenu extends StatelessWidget {
     // Activités écoutées une seule fois : compteurs pas/étages du jour
     // courant et dépense sportive du jour affiché (v0.7.2).
     final activites = context.watch<Activites>();
+    // v0.7.9 : hydratation du jour (boutons de saisie rapide).
+    final hydratation = context.watch<Hydratation>();
+    // Poids connu (dernière pesée) : sert d'extrapolation à l'objectif
+    // d'hydratation (v0.7.9).
+    final progression = context.watch<Progression>();
     return RefreshIndicator(
       onRefresh: () async {
         await journal.changerJour(journal.jour);
@@ -229,6 +237,18 @@ class _Contenu extends StatelessWidget {
             depense: activites.depenseBudget(journal.jour),
           ),
           const SizedBox(height: 8),
+          // v0.7.9 : carte hydratation, seulement sur la journée en
+          // cours (pas de sens sur une date passée feuilletée).
+          if (_memeJour(journal.jour, DateTime.now()))
+            _CarteHydratation(
+              hydratation: hydratation,
+              objectif: objectifEau(
+                  poidsKg: progression.dernier?.kg,
+                  minutesSport:
+                      activites.minutesSportJour(journal.jour).round()),
+            ),
+          if (_memeJour(journal.jour, DateTime.now()))
+            const SizedBox(height: 8),
           // Bouton d'ajout toujours visible (au-delà du bouton flottant),
           // pour que l'ajout d'un repas reste accessible à tout moment.
           FilledButton.icon(
@@ -795,5 +815,81 @@ Future<void> _basculerFavori(
         SnackBar(content: Text('« $nom » ajouté aux favoris.')),
       );
     }
+  }
+}
+
+/// Carte hydratation du jour (v0.7.9) : eau bue, objectif extrapolé
+/// depuis le poids connu et le sport du jour, boutons de saisie rapide
+/// (verre 250 mL, gourde 500 mL, correction -250 mL).
+class _CarteHydratation extends StatelessWidget {
+  const _CarteHydratation({
+    required this.hydratation,
+    required this.objectif,
+  });
+
+  final Hydratation hydratation;
+  final int objectif;
+
+  @override
+  Widget build(BuildContext context) {
+    final ml = hydratation.mlJour;
+    final ratio = objectif > 0 ? (ml / objectif).clamp(0.0, 1.0) : 0.0;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.water_drop, color: Colors.lightBlue),
+                const SizedBox(width: 8),
+                const Expanded(
+                  child: Text(
+                    'Hydratation',
+                    style:
+                        TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                    key: Key('hydratationTitre'),
+                  ),
+                ),
+                Text(
+                  '${formatEntier(ml)} / ${formatEntier(objectif)} mL',
+                  key: const Key('hydratationTotal'),
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            LinearProgressIndicator(
+              value: ratio,
+              minHeight: 6,
+              borderRadius: BorderRadius.circular(3),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                TextButton(
+                  key: const Key('hydratationMoins'),
+                  onPressed:
+                      ml > 0 ? () => hydratation.ajuster(-250) : null,
+                  child: const Text('-250'),
+                ),
+                FilledButton.tonal(
+                  key: const Key('hydratationVerre'),
+                  onPressed: () => hydratation.ajuster(250),
+                  child: const Text('+250 mL'),
+                ),
+                FilledButton.tonal(
+                  key: const Key('hydratationGourde'),
+                  onPressed: () => hydratation.ajuster(500),
+                  child: const Text('+500 mL'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

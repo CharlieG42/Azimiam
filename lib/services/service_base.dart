@@ -26,7 +26,7 @@ class ServiceBase {
     final dossier = await getApplicationDocumentsDirectory();
     return openDatabase(
       p.join(dossier.path, 'azimiam.db'),
-      version: 6,
+      version: 7,
       onCreate: (db, version) async {
         await _creerTables(db);
       },
@@ -85,6 +85,15 @@ class ServiceBase {
               'ALTER TABLE activites ADD COLUMN cle_externe TEXT');
           await db.execute(
               'ALTER TABLE activites ADD COLUMN source TEXT');
+        }
+        if (oldVersion < 7) {
+          // v0.7.9 : suivi de l'hydratation (eau bue par jour).
+          await db.execute('''
+            CREATE TABLE IF NOT EXISTS hydratation(
+              jour TEXT PRIMARY KEY,
+              ml INTEGER NOT NULL
+            )
+          ''');
         }
       },
     );
@@ -151,6 +160,12 @@ class ServiceBase {
         gluc100 REAL NOT NULL,
         lip100 REAL NOT NULL,
         cree_le TEXT NOT NULL
+      )
+    ''');
+    await db.execute('''
+      CREATE TABLE hydratation(
+        jour TEXT PRIMARY KEY,
+        ml INTEGER NOT NULL
       )
     ''');
   }
@@ -316,6 +331,46 @@ class ServiceBase {
   Future<void> supprimerPesee(int id) async {
     final db = await base;
     await db.delete('poids', where: 'id = ?', whereArgs: [id]);
+  }
+
+  /// Eau bue le [jour] demandé, en millilitres (0 si aucune saisie) —
+  /// v0.7.9.
+  Future<int> eauJour(DateTime jour) async {
+    final db = await base;
+    final lignes = await db.query('hydratation',
+        where: 'jour = ?', whereArgs: [cleJour(jour)], limit: 1);
+    if (lignes.isEmpty) return 0;
+    return lignes.first['ml'] as int;
+  }
+
+  /// Ajuste l'eau bue du [jour] de [ml] millilitres, négatif permis pour
+  /// corriger une erreur de saisie (total jamais sous 0) — v0.7.9.
+  Future<void> ajusterEau(DateTime jour, int ml) async {
+    final db = await base;
+    final actuel = await eauJour(jour);
+    final total = actuel + ml < 0 ? 0 : actuel + ml;
+    await db.insert(
+      'hydratation',
+      {'jour': cleJour(jour), 'ml': total},
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  /// Eau bue par jour civil sur les [jours] derniers jours (v0.7.9) :
+  /// seuls les jours avec au moins une saisie sont présents, le reste
+  /// est à considérer comme 0.
+  Future<Map<DateTime, int>> historiqueEau(int jours) async {
+    final db = await base;
+    final ref = DateTime.now();
+    final depuis = DateTime(ref.year, ref.month, ref.day)
+        .subtract(Duration(days: jours - 1));
+    final lignes = await db
+        .query('hydratation', where: 'jour >= ?', whereArgs: [cleJour(depuis)]);
+    final parJour = <DateTime, int>{};
+    for (final l in lignes) {
+      parJour[DateTime.parse(l['jour'] as String)] = l['ml'] as int;
+    }
+    return parJour;
   }
 
   // --------------------------------------------------- Totaux journaliers

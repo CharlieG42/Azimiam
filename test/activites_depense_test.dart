@@ -26,6 +26,31 @@ void main() {
     expect(activites.depenseJour(DateTime(2026, 11, 26)), 590);
   });
 
+  test('minutesSportJour additionne les durées du jour demandé (v0.7.9)', () {
+    final activites = Activites()
+      ..liste = [
+        ActiviteSport(
+            moment: DateTime(2026, 11, 26, 8),
+            type: 'course',
+            dureeMin: 40,
+            kcal: 430),
+        ActiviteSport(
+            moment: DateTime(2026, 11, 26, 19),
+            type: 'marche',
+            dureeMin: 30,
+            kcal: 160),
+        ActiviteSport(
+            moment: DateTime(2026, 11, 24, 18),
+            type: 'velo',
+            dureeMin: 60,
+            kcal: 400),
+      ];
+    // Sert à majorer l'objectif d'hydratation : 70 min ce jour-là.
+    expect(activites.minutesSportJour(DateTime(2026, 11, 26)), 70);
+    expect(activites.minutesSportJour(DateTime(2026, 11, 24)), 60);
+    expect(activites.minutesSportJour(DateTime(2026, 11, 20)), 0);
+  });
+
   test('depenseJour vaut 0 sans séance ce jour-là (v0.7.2)', () {
     final activites = Activites()
       ..liste = [

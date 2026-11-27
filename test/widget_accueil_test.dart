@@ -13,6 +13,7 @@ import 'package:azimiam/screens/ajout_repas_ecran.dart';
 import 'package:azimiam/services/service_sante.dart';
 import 'package:azimiam/state/activites.dart';
 import 'package:azimiam/state/catalogue.dart';
+import 'package:azimiam/state/hydratation.dart';
 import 'package:azimiam/state/journal.dart';
 import 'package:azimiam/state/progression.dart';
 
@@ -31,6 +32,8 @@ void main() {
         ChangeNotifierProvider(create: (_) => Activites()),
         // L'écran d'ajout poussé depuis l'accueil cherche dans le catalogue.
         ChangeNotifierProvider(create: (_) => Catalogue()),
+        // v0.7.9 : la carte hydratation de l'accueil.
+        ChangeNotifierProvider(create: (_) => Hydratation()),
       ],
       child: const MaterialApp(home: AccueilEcran()),
     );
@@ -97,6 +100,8 @@ void main() {
         ChangeNotifierProvider(create: (_) => Progression()),
         ChangeNotifierProvider(create: (_) => Activites()),
         ChangeNotifierProvider(create: (_) => Catalogue()),
+        // v0.7.9 : la carte hydratation de l'accueil.
+        ChangeNotifierProvider(create: (_) => Hydratation()),
       ],
       child: const MaterialApp(home: AccueilEcran()),
     ));
@@ -117,6 +122,8 @@ void main() {
         ChangeNotifierProvider(create: (_) => Progression()),
         ChangeNotifierProvider(create: (_) => Activites()),
         ChangeNotifierProvider(create: (_) => Catalogue()),
+        // v0.7.9 : la carte hydratation de l'accueil.
+        ChangeNotifierProvider(create: (_) => Hydratation()),
       ],
       child: const MaterialApp(home: AccueilEcran()),
     ));
@@ -151,6 +158,8 @@ void main() {
         ChangeNotifierProvider(create: (_) => Progression()),
         ChangeNotifierProvider<Activites>.value(value: activites),
         ChangeNotifierProvider(create: (_) => Catalogue()),
+        // v0.7.9 : la carte hydratation de l'accueil.
+        ChangeNotifierProvider(create: (_) => Hydratation()),
       ],
       child: const MaterialApp(home: AccueilEcran()),
     ));
@@ -186,6 +195,8 @@ void main() {
         ChangeNotifierProvider(create: (_) => Progression()),
         ChangeNotifierProvider<Activites>.value(value: activites),
         ChangeNotifierProvider(create: (_) => Catalogue()),
+        // v0.7.9 : la carte hydratation de l'accueil.
+        ChangeNotifierProvider(create: (_) => Hydratation()),
       ],
       child: const MaterialApp(home: AccueilEcran()),
     ));
@@ -206,6 +217,8 @@ void main() {
         ChangeNotifierProvider(create: (_) => Progression()),
         ChangeNotifierProvider(create: (_) => Activites()),
         ChangeNotifierProvider(create: (_) => Catalogue()),
+        // v0.7.9 : la carte hydratation de l'accueil.
+        ChangeNotifierProvider(create: (_) => Hydratation()),
       ],
       child: const MaterialApp(home: AccueilEcran()),
     ));
@@ -227,6 +240,8 @@ void main() {
         ChangeNotifierProvider(create: (_) => Progression()),
         ChangeNotifierProvider<Activites>.value(value: activites),
         ChangeNotifierProvider(create: (_) => Catalogue()),
+        // v0.7.9 : la carte hydratation de l'accueil.
+        ChangeNotifierProvider(create: (_) => Hydratation()),
       ],
       child: const MaterialApp(home: AccueilEcran()),
     ));
@@ -263,6 +278,8 @@ void main() {
         ChangeNotifierProvider(create: (_) => Progression()),
         ChangeNotifierProvider(create: (_) => Activites()),
         ChangeNotifierProvider(create: (_) => Catalogue()),
+        // v0.7.9 : la carte hydratation de l'accueil.
+        ChangeNotifierProvider(create: (_) => Hydratation()),
       ],
       child: const MaterialApp(home: AccueilEcran()),
     ));
@@ -275,6 +292,11 @@ void main() {
 
   testWidgets('la suppression d\'un repas demande confirmation (v0.7.6)',
       (tester) async {
+    // v0.7.9 : la carte hydratation pousse les repas vers le bas,
+    // le viewport doit être assez grand pour toucher la carte repas.
+    tester.view.physicalSize = const Size(800, 1400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
     final journal = Journal()
       ..repas = [
         Repas(
@@ -297,6 +319,8 @@ void main() {
         ChangeNotifierProvider(create: (_) => Progression()),
         ChangeNotifierProvider(create: (_) => Activites()),
         ChangeNotifierProvider(create: (_) => Catalogue()),
+        // v0.7.9 : la carte hydratation de l'accueil.
+        ChangeNotifierProvider(create: (_) => Hydratation()),
       ],
       child: const MaterialApp(home: AccueilEcran()),
     ));
@@ -324,5 +348,37 @@ void main() {
     await tester.tap(find.byKey(const Key('confirmerSuppression')));
     await tester.pumpAndSettle();
     expect(find.textContaining('Supprimer ce repas'), findsNothing);
+  });
+
+  testWidgets('la carte hydratation affiche le total du jour et les boutons (v0.7.9)',
+      (tester) async {
+    final hydratation = Hydratation()..mlJour = 750;
+    await tester.pumpWidget(MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => Journal()),
+        ChangeNotifierProvider(create: (_) => Progression()),
+        ChangeNotifierProvider(create: (_) => Activites()),
+        ChangeNotifierProvider(create: (_) => Catalogue()),
+        ChangeNotifierProvider<Hydratation>.value(value: hydratation),
+      ],
+      child: const MaterialApp(home: AccueilEcran()),
+    ));
+    await tester.pump();
+
+    // Total du jour + objectif extrapolé sans pesée (2 000 mL).
+    expect(find.text('Hydratation'), findsOneWidget);
+    expect(find.text('750 / 2 000 mL'), findsOneWidget);
+
+    // Boutons de saisie rapide ; la correction n'est active que si
+    // quelque chose a déjà été bu.
+    expect(find.byKey(const Key('hydratationVerre')), findsOneWidget);
+    expect(find.byKey(const Key('hydratationGourde')), findsOneWidget);
+    final moins = find.byKey(const Key('hydratationMoins'));
+    expect(tester.widget<TextButton>(moins).onPressed, isNotNull);
+
+    // Un tap sur +500 mL ne crashe pas même sans base en test.
+    await tester.tap(find.byKey(const Key('hydratationGourde')));
+    await tester.pump();
+    expect(tester.takeException(), isNull);
   });
 }

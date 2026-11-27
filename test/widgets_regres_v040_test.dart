@@ -13,6 +13,7 @@ import 'package:azimiam/models/repas.dart';
 import 'package:azimiam/models/valeurs.dart';
 import 'package:azimiam/state/activites.dart';
 import 'package:azimiam/state/catalogue.dart';
+import 'package:azimiam/state/hydratation.dart';
 import 'package:azimiam/state/journal.dart';
 import 'package:azimiam/state/progression.dart';
 
@@ -62,6 +63,8 @@ void main() {
         ChangeNotifierProvider(create: (_) => Progression()),
         // v0.7.0 : l'accueil lit les compteurs pas/étages d'Activites.
         ChangeNotifierProvider(create: (_) => Activites()),
+        // v0.7.9 : la carte hydratation de l'accueil.
+        ChangeNotifierProvider(create: (_) => Hydratation()),
       ],
       child: const MaterialApp(home: AccueilEcran()),
     ));
@@ -87,12 +90,19 @@ void main() {
       ),
     ];
 
+    // v0.7.9 : la carte hydratation pousse le bouton modifier sous le
+    // pli du viewport 800x600 par défaut, il faut l'agrandir.
+    tester.view.physicalSize = const Size(800, 1400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
     await tester.pumpWidget(MultiProvider(
       providers: [
         ChangeNotifierProvider.value(value: journal),
         ChangeNotifierProvider(create: (_) => Progression()),
         // v0.7.0 : l'accueil lit les compteurs pas/étages d'Activites.
         ChangeNotifierProvider(create: (_) => Activites()),
+        // v0.7.9 : la carte hydratation de l'accueil.
+        ChangeNotifierProvider(create: (_) => Hydratation()),
       ],
       child: const MaterialApp(home: AccueilEcran()),
     ));

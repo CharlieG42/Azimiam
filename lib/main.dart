@@ -7,6 +7,7 @@ import 'screens/accueil_ecran.dart';
 import 'services/affichage_erreurs.dart';
 import 'state/activites.dart';
 import 'state/catalogue.dart';
+import 'state/hydratation.dart';
 import 'state/journal.dart';
 import 'state/progression.dart';
 
@@ -41,6 +42,8 @@ class AzimiamApp extends StatelessWidget {
               ..charger()
               ..importAuto()),
         ChangeNotifierProvider(create: (_) => Catalogue()..charger()),
+        // v0.7.9 : suivi de l'hydratation (eau bue par jour).
+        ChangeNotifierProvider(create: (_) => Hydratation()..charger()),
       ],
       child: MaterialApp(
         title: 'Azimiam',

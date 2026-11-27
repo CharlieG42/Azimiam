@@ -9,6 +9,7 @@ import 'package:azimiam/screens/accueil_ecran.dart';
 import 'package:azimiam/screens/activites_ecran.dart';
 import 'package:azimiam/services/service_sante.dart';
 import 'package:azimiam/state/activites.dart';
+import 'package:azimiam/state/hydratation.dart';
 import 'package:azimiam/state/journal.dart';
 import 'package:azimiam/state/progression.dart';
 
@@ -40,6 +41,8 @@ void main() {
           ChangeNotifierProvider<Journal>.value(value: Journal()),
           ChangeNotifierProvider<Progression>.value(value: Progression()),
           ChangeNotifierProvider<Activites>.value(value: activites),
+          // v0.7.9 : l'accueil (pompé par un test) lit l'hydratation.
+          ChangeNotifierProvider<Hydratation>.value(value: Hydratation()),
         ],
         child: MaterialApp(home: enfant ?? const ActivitesEcran()),
       );
