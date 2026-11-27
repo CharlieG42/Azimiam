@@ -245,5 +245,16 @@ class _SourceSanteRefus implements SourceSante {
       Future.value(const []);
 
   @override
+  Future<List<SeanceSommeil>> sommeilEntre(DateTime debut, DateTime fin) =>
+      Future.value(const []);
+
+  @override
+  Future<List<MesureFc>> fcReposEntre(DateTime debut, DateTime fin) =>
+      Future.value(const []);
+
+  @override
+  Future<int?> fcMinEntre(DateTime debut, DateTime fin) async => null;
+
+  @override
   Future<CompteursJour?> compteursJour(DateTime jour) async => null;
 }

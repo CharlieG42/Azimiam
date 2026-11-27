@@ -58,6 +58,9 @@ class ProgressionEcran extends StatelessWidget {
                     activites: activites,
                     progression: progression,
                   ),
+                  // v0.8.0 : suivi du sommeil et de la FC au repos
+                  // (7 derniers jours) — masqué sans données santé.
+                  _CarteSommeilSuivi(activites: activites),
                   if (progression.erreur != null)
                     Padding(
                       padding: const EdgeInsets.only(top: 8),
@@ -651,6 +654,90 @@ class _BarresPainter extends CustomPainter {
 /// Suivi de l'hydratation des 7 derniers jours (v0.7.9) : eau bue et
 /// objectif de chaque journée (poids connu + sport du jour), pour voir
 /// la régularité au fil de la semaine.
+/// Suivi du sommeil des 7 derniers jours (v0.8.0) : durée de chaque
+/// nuit (attribuée au jour du réveil) et FC au repos du jour. La barre
+/// se lit contre un repère de 8 h de sommeil. Sans données santé, la
+/// carte disparaît de l'écran.
+class _CarteSommeilSuivi extends StatelessWidget {
+  const _CarteSommeilSuivi({required this.activites});
+
+  final Activites activites;
+
+  @override
+  Widget build(BuildContext context) {
+    if (activites.sommeil7.isEmpty && activites.fcRepos7.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    final aujourdhui = DateTime.now();
+    final lignes = <Widget>[];
+    for (var i = 6; i >= 0; i--) {
+      final jour = DateTime(aujourdhui.year, aujourdhui.month, aujourdhui.day)
+          .subtract(Duration(days: i));
+      final minutes = activites.sommeilJour(jour);
+      final fc = activites.fcReposJour(jour);
+      // Repère de lecture : 8 h de sommeil (barre pleine).
+      const reference = 8 * 60;
+      final ratio =
+          minutes == null ? 0.0 : (minutes / reference).clamp(0.0, 1.0);
+      final texte = minutes == null
+          ? (fc == null ? '—' : '$fc bpm')
+          : formatDuree(minutes) + (fc == null ? '' : ' · $fc bpm');
+      lignes.add(Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 52,
+              child: Text(
+                DateFormat('EEE d', 'fr_FR').format(jour),
+                style: const TextStyle(fontSize: 13),
+              ),
+            ),
+            Expanded(
+              child: LinearProgressIndicator(
+                value: ratio,
+                minHeight: 8,
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ),
+            SizedBox(
+              width: 118,
+              child: Text(
+                texte,
+                textAlign: TextAlign.right,
+                style: const TextStyle(fontSize: 13),
+              ),
+            ),
+          ],
+        ),
+      ));
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const SizedBox(height: 8),
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Sommeil (7 derniers jours)',
+                  key: Key('sommeilSuiviTitre'),
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                ),
+                const SizedBox(height: 4),
+                ...lignes,
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _CarteHydratationSuivi extends StatelessWidget {
   const _CarteHydratationSuivi({
     required this.hydratation,

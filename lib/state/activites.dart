@@ -27,6 +27,15 @@ class Activites extends ChangeNotifier {
   /// (null si indisponibles : pas d'autorisation, pas de données…).
   CompteursJour? compteursJour;
 
+  /// Minutes de sommeil par jour de réveil sur les 7 derniers jours
+  /// (v0.8.0) : la nuit de mardi à mercredi compte pour mercredi.
+  /// Seuls les jours connus sont présents.
+  Map<DateTime, int> sommeil7 = {};
+
+  /// FC au repos par jour civil sur les 7 derniers jours (v0.8.0),
+  /// en bpm. Seuls les jours connus sont présents.
+  Map<DateTime, int> fcRepos7 = {};
+
   /// Message discret d'information sur le dernier import (ex. « 2 séance(s)
   /// importée(s) depuis Health Connect ») ; null quand rien à signaler.
   String? infoImport;
@@ -126,6 +135,37 @@ class Activites extends ChangeNotifier {
       } catch (_) {
         // L'import du poids ne doit jamais bloquer ni alerter.
       }
+      // Sommeil et FC au repos de Santé Connect (v0.8.0) : nuits
+      // attribuées au jour du réveil, FC au repos quotidienne (repli :
+      // FC minimale du jour courant relevée dans les mesures
+      // ponctuelles, pour limiter le volume lu — une source qui ne
+      // publie pas de FC au repos reste ainsi exploitable). L'échec
+      // ne remonte jamais.
+      try {
+        final sommeil = await source.sommeilEntre(debut, fin);
+        final nuits = minutesSommeilParJour(sommeil);
+        for (final e in nuits.entries) {
+          await _base.majSommeilMinutes(e.key, e.value);
+        }
+        final fc = fcReposParJour(await source.fcReposEntre(debut, fin));
+        final maintenant = DateTime.now();
+        final aujourdhui =
+            DateTime(maintenant.year, maintenant.month, maintenant.day);
+        if (!fc.containsKey(aujourdhui)) {
+          final mini = await source.fcMinEntre(aujourdhui, maintenant);
+          if (mini != null) fc[aujourdhui] = mini;
+        }
+        for (final e in fc.entries) {
+          await _base.majFcRepos(e.key, e.value);
+        }
+        if (nuits.isNotEmpty || fc.isNotEmpty) {
+          sommeil7 = await _base.historiqueSommeil(7);
+          fcRepos7 = await _base.historiqueFcRepos(7);
+          notifyListeners();
+        }
+      } catch (_) {
+        // L'import du sommeil ne doit jamais bloquer ni alerter.
+      }
       await rafraichirCompteurs();
     } catch (e) {
       if (!silencieux) {
@@ -141,6 +181,14 @@ class Activites extends ChangeNotifier {
     notifyListeners();
     try {
       liste = await _base.listeActivites();
+      // v0.8.0 : suivi du sommeil et de la FC au repos (7 derniers
+      // jours). Silencieux : la base peut être indisponible en tests.
+      try {
+        sommeil7 = await _base.historiqueSommeil(7);
+        fcRepos7 = await _base.historiqueFcRepos(7);
+      } catch (_) {
+        // Base indisponible : suivi du sommeil vide, rien ne bloque.
+      }
     } catch (e) {
       erreur = e.toString();
     }
@@ -199,6 +247,15 @@ class Activites extends ChangeNotifier {
     }
     return total;
   }
+
+  /// Minutes de sommeil de la nuit attribuée au [jour] — le jour du
+  /// réveil (v0.8.0) ; null si aucune nuit connue.
+  int? sommeilJour(DateTime jour) =>
+      sommeil7[DateTime(jour.year, jour.month, jour.day)];
+
+  /// FC au repos du [jour], en bpm (v0.8.0) ; null si inconnue.
+  int? fcReposJour(DateTime jour) =>
+      fcRepos7[DateTime(jour.year, jour.month, jour.day)];
 
   /// Dépense à créditer au budget du [jour] affiché (v0.7.3) : le plus
   /// élevé des calories actives du jour courant (Health Connect, déjà
