@@ -6,7 +6,11 @@ import 'package:provider/provider.dart';
 
 import '../models/progression.dart';
 import '../services/service_base.dart';
+import '../services/service_hydratation.dart';
 import '../services/service_imc.dart';
+import '../services/service_sante.dart';
+import '../state/activites.dart';
+import '../state/hydratation.dart';
 import '../state/progression.dart';
 import 'reglages_ecran.dart';
 import '../widgets/dialogue_confirmation.dart';
@@ -19,6 +23,10 @@ class ProgressionEcran extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final progression = context.watch<Progression>();
+    // v0.7.9 : suivi de l'hydratation (7 derniers jours) et minutes de
+    // sport par jour pour l'objectif de chaque journée.
+    final hydratation = context.watch<Hydratation>();
+    final activites = context.watch<Activites>();
 
     return Scaffold(
       appBar: AppBar(
@@ -43,6 +51,13 @@ class ProgressionEcran extends StatelessWidget {
                   _CartePoids(progression: progression),
                   const SizedBox(height: 8),
                   _CarteApports(progression: progression),
+                  const SizedBox(height: 8),
+                  // v0.7.9 : suivi de l'hydratation des 7 derniers jours.
+                  _CarteHydratationSuivi(
+                    hydratation: hydratation,
+                    activites: activites,
+                    progression: progression,
+                  ),
                   if (progression.erreur != null)
                     Padding(
                       padding: const EdgeInsets.only(top: 8),
@@ -631,4 +646,79 @@ class _BarresPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _BarresPainter old) =>
       old.valeurs != valeurs || old.objectif != objectif;
+}
+
+/// Suivi de l'hydratation des 7 derniers jours (v0.7.9) : eau bue et
+/// objectif de chaque journée (poids connu + sport du jour), pour voir
+/// la régularité au fil de la semaine.
+class _CarteHydratationSuivi extends StatelessWidget {
+  const _CarteHydratationSuivi({
+    required this.hydratation,
+    required this.activites,
+    required this.progression,
+  });
+
+  final Hydratation hydratation;
+  final Activites activites;
+  final Progression progression;
+
+  @override
+  Widget build(BuildContext context) {
+    final aujourdhui = DateTime.now();
+    final lignes = <Widget>[];
+    for (var i = 6; i >= 0; i--) {
+      final jour = DateTime(aujourdhui.year, aujourdhui.month, aujourdhui.day)
+          .subtract(Duration(days: i));
+      final ml = hydratation.derniers7[jour] ?? 0;
+      final objectif = objectifEau(
+          poidsKg: progression.dernier?.kg,
+          minutesSport: activites.minutesSportJour(jour).round());
+      final ratio = objectif > 0 ? (ml / objectif).clamp(0.0, 1.0) : 0.0;
+      lignes.add(Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 52,
+              child: Text(
+                DateFormat('EEE d', 'fr_FR').format(jour),
+                style: const TextStyle(fontSize: 13),
+              ),
+            ),
+            Expanded(
+              child: LinearProgressIndicator(
+                value: ratio,
+                minHeight: 8,
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ),
+            SizedBox(
+              width: 118,
+              child: Text(
+                '${formatEntier(ml)} / ${formatEntier(objectif)} mL',
+                textAlign: TextAlign.right,
+                style: const TextStyle(fontSize: 13),
+              ),
+            ),
+          ],
+        ),
+      ));
+    }
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Hydratation (7 derniers jours)',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+            ),
+            const SizedBox(height: 4),
+            ...lignes,
+          ],
+        ),
+      ),
+    );
+  }
 }

@@ -185,6 +185,21 @@ class Activites extends ChangeNotifier {
     return total;
   }
 
+  /// Minutes de sport le [jour] demandé (v0.7.9) : somme des durées des
+  /// séances de ce jour civil. Sert à majorer l'objectif d'hydratation
+  /// (500 mL par heure d'effort).
+  double minutesSportJour(DateTime jour) {
+    double total = 0;
+    for (final a in liste) {
+      if (a.moment.year == jour.year &&
+          a.moment.month == jour.month &&
+          a.moment.day == jour.day) {
+        total += a.dureeMin;
+      }
+    }
+    return total;
+  }
+
   /// Dépense à créditer au budget du [jour] affiché (v0.7.3) : le plus
   /// élevé des calories actives du jour courant (Health Connect, déjà
   /// mesurées par la montre) et des kcal des séances de ce jour.
