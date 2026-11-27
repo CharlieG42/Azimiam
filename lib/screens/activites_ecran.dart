@@ -30,15 +30,19 @@ class ActivitesEcran extends StatelessWidget {
       body: activites.enChargement
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
-              onRefresh: activites.charger,
+              // v0.7.7 : le tirer-à-rafraîchir relit la base ET relance
+              // l'import Health Connect — une séance terminée (ou
+              // synchronisée) après le dernier démarrage apparaît sans
+              // fermer/rouvrir l'app, avec un message discret du résultat.
+              onRefresh: () => activites.importerDepuisSante(null),
               child: activites.liste.isEmpty
                   ? ListView(
-                      children: const [
-                        SizedBox(height: 80),
-                        Icon(Icons.directions_run,
+                      children: [
+                        const SizedBox(height: 80),
+                        const Icon(Icons.directions_run,
                             size: 64, color: Colors.grey),
-                        SizedBox(height: 12),
-                        Center(
+                        const SizedBox(height: 12),
+                        const Center(
                           child: Padding(
                             padding: EdgeInsets.symmetric(horizontal: 32),
                             child: Text(
@@ -46,12 +50,28 @@ class ActivitesEcran extends StatelessWidget {
                               'Touchez « Déclarer une activité » pour '
                               'enregistrer une séance : type, durée, '
                               'distance et dénivelé le cas échéant. Les '
-                              'calories sont calculées automatiquement.',
+                              'calories sont calculées automatiquement.\n'
+                              'Tirez la liste vers le bas pour importer '
+                              'vos séances Santé Connect (montre).',
                               textAlign: TextAlign.center,
                               style: TextStyle(color: Colors.grey),
                             ),
                           ),
                         ),
+                        // v0.7.7 : le retour du dernier import santé est
+                        // visible même sans activité (le tirer-à-rafraîchir
+                        // relance l'import depuis cette liste vide).
+                        if (activites.infoImport != null)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 12),
+                            child: Text(
+                              activites.infoImport!,
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey.shade600),
+                            ),
+                          ),
                       ],
                     )
                   : ListView(

@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:azimiam/models/activite.dart';
 import 'package:azimiam/screens/accueil_ecran.dart';
 import 'package:azimiam/screens/activites_ecran.dart';
+import 'package:azimiam/services/service_sante.dart';
 import 'package:azimiam/state/activites.dart';
 import 'package:azimiam/state/journal.dart';
 import 'package:azimiam/state/progression.dart';
@@ -205,4 +206,41 @@ void main() {
         find.textContaining('séances importées depuis Health Connect'),
         findsOneWidget);
   });
+
+  testWidgets('le tirer-à-rafraîchir relance l\'import Santé Connect (v0.7.7)',
+      (tester) async {
+    // Source simulée qui refuse l'autorisation : le tirer-à-rafraîchir
+    // doit déclencher l'import et en afficher le résultat explicite.
+    final activites = Activites(sourceSante: _SourceSanteRefus());
+    await tester.pumpWidget(hote(activites));
+    await tester.pumpAndSettle();
+
+    // Rien à importer tant que la liste n'a pas été tirée.
+    expect(find.textContaining('Import impossible'), findsNothing);
+
+    await tester.fling(
+        find.byType(ListView), const Offset(0, 400), 1000.0);
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Import impossible'), findsOneWidget);
+  });
+}
+
+/// Fausse source santé qui refuse l'autorisation Health Connect :
+/// permet de vérifier en test widget que le tirer-à-rafraîchir de
+/// l'écran Activités relance bien l'import (v0.7.7) sans toucher
+/// à Health Connect ni à la base.
+class _SourceSanteRefus implements SourceSante {
+  @override
+  Future<bool> demanderAutorisation() async => false;
+
+  @override
+  Future<List<SeanceSante>> seancesEntre(DateTime debut, DateTime fin) =>
+      Future.value(const []);
+
+  @override
+  Future<List<PeseeSante>> peseesEntre(DateTime debut, DateTime fin) =>
+      Future.value(const []);
+
+  @override
+  Future<CompteursJour?> compteursJour(DateTime jour) async => null;
 }
