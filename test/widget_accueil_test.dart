@@ -272,4 +272,57 @@ void main() {
     expect(find.textContaining('Déjeuner ·'), findsNothing);
     expect(find.text('13:18'), findsOneWidget);
   });
+
+  testWidgets('la suppression d\'un repas demande confirmation (v0.7.6)',
+      (tester) async {
+    final journal = Journal()
+      ..repas = [
+        Repas(
+          id: 1,
+          prisLe: DateTime(2026, 11, 26, 13, 18),
+          type: 'Déjeuner',
+          lignes: [
+            LigneRepas(
+              nom: 'Filet de porc',
+              grammes: 250,
+              pour100: ValeursNutritionnelles(
+                  kcal: 160, proteines: 5, glucides: 10, lipides: 2),
+            ),
+          ],
+        ),
+      ];
+    await tester.pumpWidget(MultiProvider(
+      providers: [
+        ChangeNotifierProvider<Journal>.value(value: journal),
+        ChangeNotifierProvider(create: (_) => Progression()),
+        ChangeNotifierProvider(create: (_) => Activites()),
+        ChangeNotifierProvider(create: (_) => Catalogue()),
+      ],
+      child: const MaterialApp(home: AccueilEcran()),
+    ));
+    await tester.pump();
+
+    // Balayage de la carte : le dialogue de confirmation apparaît,
+    // la carte est encore en place derrière.
+    await tester.fling(
+        find.byKey(const ValueKey('repas-1')), const Offset(-500, 0), 1000.0);
+    await tester.pump();
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Supprimer ce repas'), findsOneWidget);
+
+    // Annuler : rien n'est supprimé, la carte reste.
+    await tester.tap(find.byKey(const Key('annulerSuppression')));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Supprimer ce repas'), findsNothing);
+    expect(find.text('13:18'), findsOneWidget);
+
+    // Confirmer : le dialogue se referme et la suppression part.
+    await tester.fling(
+        find.byKey(const ValueKey('repas-1')), const Offset(-500, 0), 1000.0);
+    await tester.pump();
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('confirmerSuppression')));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Supprimer ce repas'), findsNothing);
+  });
 }

@@ -5,6 +5,7 @@ import '../data/mini_base.dart';
 import '../services/service_nutrition.dart';
 import '../state/catalogue.dart';
 import '../widgets/dialog_nouvel_aliment.dart';
+import '../widgets/dialogue_confirmation.dart';
 
 /// Catalogue complet des aliments : base embarquée + aliments ajoutés par
 /// l'utilisateur. Recherche instantanée multi-mots insensible aux accents
@@ -179,6 +180,9 @@ class _TuileAliment extends StatelessWidget {
     return Dismissible(
       key: ValueKey('perso-${aliment.id}'),
       direction: DismissDirection.endToStart,
+      // v0.7.6 : confirmation avant suppression de l'aliment perso.
+      confirmDismiss: (_) async => await confirmerSuppression(context,
+          message: 'Supprimer « ${aliment.nom} » du catalogue ?'),
       background: Container(
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: 20),

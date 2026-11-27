@@ -1,2 +1,2 @@
 /// Version embarquée (regénérée par la CI au build).
-const String kVersionApp = '0.7.5+21';
+const String kVersionApp = '0.7.6+22';
