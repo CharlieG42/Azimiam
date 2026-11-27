@@ -6,6 +6,7 @@ import '../models/activite.dart';
 import '../services/service_activites.dart';
 import '../state/activites.dart';
 import '../state/progression.dart';
+import '../widgets/dialogue_confirmation.dart';
 
 /// Format affichable d'une durée en minutes : « 45 min », « 1 h 05 ».
 String _fmtDuree(double minutes) {
@@ -192,6 +193,10 @@ class _CarteActivite extends StatelessWidget {
       child: Dismissible(
         key: ValueKey('activite-${activite.id}'),
         direction: DismissDirection.endToStart,
+        // v0.7.6 : confirmation avant suppression de la séance.
+        confirmDismiss: (_) async => await confirmerSuppression(context,
+            message:
+                'Supprimer cette séance (${activite.kcal.round()} kcal) ?'),
         background: Container(
           alignment: Alignment.centerRight,
           padding: const EdgeInsets.only(right: 20),

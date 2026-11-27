@@ -17,6 +17,7 @@ import 'modifier_repas_ecran.dart';
 import 'plan_ecran.dart';
 import 'progression_ecran.dart';
 import 'reglages_ecran.dart';
+import '../widgets/dialogue_confirmation.dart';
 
 /// Icône du groupe de repas sur l'accueil.
 IconData _iconeType(String type) {
@@ -289,6 +290,11 @@ class _Contenu extends StatelessWidget {
                       Dismissible(
                         key: ValueKey('favori-${favori.id}'),
                         direction: DismissDirection.endToStart,
+                        // v0.7.6 : confirmation avant toute suppression.
+                        confirmDismiss: (_) async =>
+                            await confirmerSuppression(context,
+                                message:
+                                    'Retirer « ${favori.nom} » des repas fréquents ?'),
                         onDismissed: (_) =>
                             journal.supprimerFavori(favori.id!),
                         background: Container(
@@ -666,6 +672,10 @@ class _CarteRepas extends StatelessWidget {
     return Dismissible(
       key: ValueKey('repas-${repas.id}'),
       direction: DismissDirection.endToStart,
+      // v0.7.6 : confirmation avant suppression du repas.
+      confirmDismiss: (_) async => await confirmerSuppression(context,
+          message:
+              'Supprimer ce repas de $heure (${repas.total.kcal.round()} kcal) ?'),
       onDismissed: (_) => onSupprimer(),
       background: Container(
         alignment: Alignment.centerRight,

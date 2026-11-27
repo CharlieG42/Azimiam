@@ -9,6 +9,7 @@ import '../services/service_base.dart';
 import '../services/service_imc.dart';
 import '../state/progression.dart';
 import 'reglages_ecran.dart';
+import '../widgets/dialogue_confirmation.dart';
 
 /// Écran Progression : IMC, suivi du poids (courbe + historique) et
 /// analyse des apports journaliers (moyennes 7/30 jours, graphique 14 jours).
@@ -339,6 +340,11 @@ class _CartePoids extends StatelessWidget {
                 Dismissible(
                   key: ValueKey('pesee-${pesee.id}'),
                   direction: DismissDirection.endToStart,
+                  // v0.7.6 : confirmation avant suppression de la pesée.
+                  confirmDismiss: (_) async => await confirmerSuppression(
+                      context,
+                      message:
+                          'Supprimer la pesée de ${pesee.kg.toStringAsFixed(1)} kg ?'),
                   onDismissed: (_) => progression.supprimerPesee(pesee.id!),
                   background: Container(
                     alignment: Alignment.centerRight,
