@@ -105,6 +105,55 @@ void main() {
     expect(activite.kcal, 245);
   });
 
+  test('enActivite estime les calories sur le poids de référence connu '
+      '(v0.7.5, WALKING 60 min -> 3,5 x 85 kg x 1 h, arrondi à 298)', () {
+    final seance = SeanceSante(
+      cleExterne: 'uuid-hc-3',
+      source: 'com.autre.app.sport',
+      moment: DateTime(2026, 11, 26, 9),
+      dureeMin: 60,
+      typeNom: 'WALKING',
+    );
+    final activite = enActivite(seance, poidsKg: 85);
+    expect(activite.kcal, 298);
+    // Sans poids connu, on retombe sur la référence 70 kg.
+    expect(enActivite(seance).kcal, 245);
+    // Les calories de la source priment toujours sur l'estimation.
+    expect(caloriesSeance(seance, poidsKg: 85), 298);
+  });
+
+  test('poidsParJour garde la dernière mesure de chaque jour (v0.7.5)',
+      () {
+    final pesees = [
+      PeseeSante(
+          moment: DateTime(2026, 11, 26, 7, 30), kg: 82.4),
+      PeseeSante(
+          moment: DateTime(2026, 11, 26, 19, 10), kg: 81.8),
+      PeseeSante(
+          moment: DateTime(2026, 11, 25, 8), kg: 82.9),
+    ];
+    final parJour = poidsParJour(pesees);
+    expect(parJour.length, 2);
+    expect(parJour[DateTime(2026, 11, 26)], 81.8);
+    expect(parJour[DateTime(2026, 11, 25)], 82.9);
+    expect(poidsParJour(const []), isEmpty);
+  });
+
+  test('peseesAImporter écarte les jours déjà pesés dans Azimiam (v0.7.5)',
+      () {
+    final parJour = {
+      DateTime(2026, 11, 26): 81.8,
+      DateTime(2026, 11, 25): 82.9,
+      DateTime(2026, 11, 24): 83.2,
+    };
+    // Le 25 est déjà saisi (même à la main, autre valeur) : il ne doit
+    // jamais être écrasé par la montre.
+    final aImporter =
+        peseesAImporter(parJour, {DateTime(2026, 11, 25)});
+    expect(aImporter.keys, containsAll([DateTime(2026, 11, 26), DateTime(2026, 11, 24)]));
+    expect(aImporter.containsKey(DateTime(2026, 11, 25)), isFalse);
+  });
+
   test('formatEntier séparateur de milliers', () {
     expect(formatEntier(8432), '8 432');
     expect(formatEntier(0), '0');
