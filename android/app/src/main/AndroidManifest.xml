@@ -15,6 +15,12 @@
     <uses-permission android:name="android.permission.health.READ_EXERCISE"/>
     <uses-permission android:name="android.permission.health.READ_ACTIVE_CALORIES_BURNED"/>
     <uses-permission android:name="android.permission.health.READ_WEIGHT"/>
+    <!-- v0.7.8 : le plugin health enrichit chaque séance lue (WORKOUT) avec
+         les DistanceRecord / TotalCaloriesBurnedRecord de sa fenêtre ; sans
+         ces deux permissions, toute lecture de séance lève une
+         SecurityException et AUCUNE séance n'est jamais importée. -->
+    <uses-permission android:name="android.permission.health.READ_DISTANCE"/>
+    <uses-permission android:name="android.permission.health.READ_TOTAL_CALORIES_BURNED"/>
     <application
         android:label="azimiam"
         android:name="${applicationName}"

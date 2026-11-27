@@ -227,6 +227,14 @@ class SourceSanteHealth implements SourceSante {
     HealthDataType.WORKOUT,
     HealthDataType.ACTIVE_ENERGY_BURNED,
     HealthDataType.WEIGHT,
+    // v0.7.8 : le plugin enrichit chaque séance WORKOUT lue avec les
+    // DistanceRecord / TotalCaloriesBurnedRecord / StepsRecord de sa
+    // fenêtre. Sans autorisation DISTANCE et TOTAL_CALORIES_BURNED, la
+    // lecture d'une séance lève une SecurityException côté plateforme :
+    // la liste revient vide et aucune séance n'est jamais importée,
+    // même présente dans Health Connect.
+    HealthDataType.DISTANCE_DELTA,
+    HealthDataType.TOTAL_CALORIES_BURNED,
   ];
 
   @override
