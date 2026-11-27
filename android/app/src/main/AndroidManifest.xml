@@ -21,6 +21,12 @@
          SecurityException et AUCUNE séance n'est jamais importée. -->
     <uses-permission android:name="android.permission.health.READ_DISTANCE"/>
     <uses-permission android:name="android.permission.health.READ_TOTAL_CALORIES_BURNED"/>
+    <!-- v0.8.0 : sommeil (nuits de la montre, attribuées au jour du
+         réveil) et fréquence cardiaque (FC au repos publiée par la
+         source, repli sur les mesures ponctuelles de la journée). -->
+    <uses-permission android:name="android.permission.health.READ_SLEEP"/>
+    <uses-permission android:name="android.permission.health.READ_HEART_RATE"/>
+    <uses-permission android:name="android.permission.health.READ_RESTING_HEART_RATE"/>
     <application
         android:label="azimiam"
         android:name="${applicationName}"

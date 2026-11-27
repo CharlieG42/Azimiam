@@ -31,6 +31,7 @@ flowchart LR
 - 📈 **Suivi des progressions** : pesées historisées (une par jour, SQLite), courbe de poids, catégorie IMC (OMS), progression vers le poids cible (% parcouru, durée estimée à ~7 700 kcal/kg), moyennes d'apports 7/30 jours et graphique des calories des 14 derniers jours vs objectif (dessiné nativement, sans dépendance graphique)
 - 📅 **Plan nutritionnel** : fixe les **objectifs globaux** de la journée (kcal, protéines, glucides, lipides) et affiche la progression réelle du jour (réalisé / objectif / reste) — **sans imposer de plats précis**
 - 💧 **Hydratation** (v0.7.9) : suivi de l'eau bue par jour sur la carte résumé de l'accueil (boutons verre +250 mL, gourde +500 mL, correction -250), avec un **objectif extrapolé depuis le profil** : 30 mL par kg du poids connu (dernière pesée) + 500 mL par heure de sport du jour, plancher 1 500 mL (repli 2 000 mL sans pesée), arrondi au multiple de 50 ; barre de progression et **suivi des 7 derniers jours** dans l'écran Progression
+- 🌙 **Sommeil & fréquence cardiaque** (v0.8.0) : les nuits de la montre (Health Connect) sont importées et **attribuées au jour du réveil** (la nuit de mardi à mercredi compte pour mercredi) — durée de la nuit dernière affichée sur la carte « Sommeil » de l'accueil (journée en cours uniquement) et **suivi des 7 derniers jours** dans l'écran Progression (barre lue contre un repère de 8 h) ; la **FC au repos** du jour est relevée dans Health Connect (repli : FC minimale des mesures ponctuelles de la journée) et affichée sous la durée de la nuit ; sans données santé, les cartes disparaissent discrètement
 - 🏃 **Activités sportives** : déclaration d'une séance (type parmi 16, date et heure, durée, distance et dénivelé positif le cas échéant), **calories dépensées calculées automatiquement** (MET du type ajusté à la vitesse pour la course et le vélo, travail de montée ajouté au dénivelé, sur la base de la dernière pesée) ou saisies à la main ; historique groupé par jour, résumé des 7 derniers jours (séances, durée, km, kcal)
 - ⭐ Favoris & repas récurrents (« recopier le déjeuner d'hier ») : étoile sur la carte du repas, section « Repas fréquents » sur l'accueil, recréation en un appui sur la journée affichée (table SQLite `favoris`) ; catalogue d'aliments avec recherche instantanée **multi-mots** insensible aux accents (« pommes terre » retrouve « Pommes de terre cuites ») et **aliments personnels persistants** (bouton « + » du catalogue : nom, alias, valeurs / 100 g, stockés dans SQLite `aliments_perso`, supprimables d'un swipe, immédiatement disponibles dans la recherche de l'écran d'ajout et le rapprochement IA)
 - 📤 Export CSV du journal, des pesées et des activités sportives (dossier `Téléchargements/Azimiam`)
@@ -61,20 +62,20 @@ lib/
     service_reglages.dart     # SharedPreferences : clé API, objectifs, profil
     service_export.dart       # export CSV du journal + pesées + activités (testé)
     service_activites.dart    # catalogue de types + calcul kcal MET/vitesse/dénivelé (testé)
-    service_sante.dart        # Health Connect : séances, pas, étages, dédoublonnage (testé)
+    service_sante.dart        # Health Connect : séances, pas, étages, sommeil, FC au repos (testé)
     service_hydratation.dart  # objectif d'hydratation : 30 mL/kg + sport du jour (v0.7.9, testé)
   state/
     journal.dart              # ChangeNotifier : journée, totaux, erreurs
     progression.dart          # ChangeNotifier : pesées, totaux 30 j, réglages
-    activites.dart            # ChangeNotifier : séances sportives, totaux 7 j ; v0.7.0 : import auto Health Connect + compteurs pas/étages
+    activites.dart            # ChangeNotifier : séances sportives, totaux 7 j ; v0.7.0 : import auto Health Connect + compteurs pas/étages ; v0.8.0 : sommeil + FC au repos 7 j
     hydratation.dart          # ChangeNotifier : eau bue du jour + 7 derniers jours (v0.7.9)
     catalogue.dart            # ChangeNotifier : base + aliments perso (doublons, ajout, suppression)
   screens/
-    accueil_ecran.dart        # résumé + liste des repas + navigation jours + compteurs pas/étages (v0.7.0) + carte hydratation (v0.7.9)
+    accueil_ecran.dart        # résumé + liste des repas + navigation jours + compteurs pas/étages (v0.7.0) + carte hydratation (v0.7.9) + carte sommeil & FC (v0.8.0)
     ajout_repas_ecran.dart    # photo → IA → correction → enregistrement + ajout manuel inline
     modifier_repas_ecran.dart # modification d'un repas : type, lignes, total
     catalogue_ecran.dart      # catalogue complet : recherche multi-mots, ajout d'aliments perso
-    progression_ecran.dart    # IMC, courbe de poids, apports 7/14/30 jours + suivi hydratation 7 j (v0.7.9)
+    progression_ecran.dart    # IMC, courbe de poids, apports 7/14/30 jours + suivi hydratation 7 j (v0.7.9) + suivi sommeil 7 j (v0.8.0)
     plan_ecran.dart           # objectifs globaux du jour vs réalisé (sans plats imposés)
     activites_ecran.dart      # activités sportives + historique ; badge montre ou Health Connect (v0.7.0)
     a_propos_ecran.dart       # écran « À propos » (version embarquée)
@@ -89,6 +90,8 @@ test/
   mini_base_test.dart         # intégrité de la mini-base
   widget_accueil_test.dart    # tests widget : tiroir ☰, bouton Aujourd'hui et navigation
   service_hydratation_test.dart # objectif d'hydratation : poids, sport, bornes (v0.7.9)
+  service_sommeil_test.dart   # sommeil : attribution au jour du réveil, FC au repos, formatage (v0.8.0)
+  widget_sommeil_test.dart    # carte sommeil accueil + suivi Progression (v0.8.0)
   widget_ajout_test.dart      # tests widget : ajout manuel inline (suggestion base / saisie libre)
   service_activites_test.dart # calculs kcal : MET, vitesse, dénivelé, catalogue
   service_sante_test.dart    # Health Connect : mapping types, dédoublonnage, calories, formatage

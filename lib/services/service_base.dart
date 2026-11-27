@@ -26,7 +26,7 @@ class ServiceBase {
     final dossier = await getApplicationDocumentsDirectory();
     return openDatabase(
       p.join(dossier.path, 'azimiam.db'),
-      version: 7,
+      version: 8,
       onCreate: (db, version) async {
         await _creerTables(db);
       },
@@ -92,6 +92,17 @@ class ServiceBase {
             CREATE TABLE IF NOT EXISTS hydratation(
               jour TEXT PRIMARY KEY,
               ml INTEGER NOT NULL
+            )
+          ''');
+        }
+        if (oldVersion < 8) {
+          // v0.8.0 : sommeil (minutes par jour de réveil) et FC au
+          // repos quotidienne.
+          await db.execute('''
+            CREATE TABLE IF NOT EXISTS sommeil(
+              jour TEXT PRIMARY KEY,
+              minutes INTEGER NOT NULL DEFAULT 0,
+              fc_repos INTEGER
             )
           ''');
         }
@@ -166,6 +177,13 @@ class ServiceBase {
       CREATE TABLE hydratation(
         jour TEXT PRIMARY KEY,
         ml INTEGER NOT NULL
+      )
+    ''');
+    await db.execute('''
+      CREATE TABLE sommeil(
+        jour TEXT PRIMARY KEY,
+        minutes INTEGER NOT NULL DEFAULT 0,
+        fc_repos INTEGER
       )
     ''');
   }
@@ -369,6 +387,67 @@ class ServiceBase {
     final parJour = <DateTime, int>{};
     for (final l in lignes) {
       parJour[DateTime.parse(l['jour'] as String)] = l['ml'] as int;
+    }
+    return parJour;
+  }
+
+  // ------------------------------------------------------- Sommeil & FC
+
+  /// Minutes de sommeil de la nuit attribuée au [jour] (jour du réveil,
+  /// v0.8.0) : upsert — la montre peut rectifier une nuit après une
+  /// re-synchronisation, la dernière valeur l'emporte.
+  Future<void> majSommeilMinutes(DateTime jour, int minutes) async {
+    final db = await base;
+    await db.rawInsert(
+      'INSERT INTO sommeil(jour, minutes, fc_repos) VALUES(?, ?, NULL) '
+      'ON CONFLICT(jour) DO UPDATE SET minutes=excluded.minutes',
+      [cleJour(jour), minutes],
+    );
+  }
+
+  /// FC au repos du [jour], en bpm (v0.8.0) : upsert qui ne touche pas
+  /// aux minutes de sommeil déjà enregistrées.
+  Future<void> majFcRepos(DateTime jour, int bpm) async {
+    final db = await base;
+    await db.rawInsert(
+      'INSERT INTO sommeil(jour, minutes, fc_repos) VALUES(?, 0, ?) '
+      'ON CONFLICT(jour) DO UPDATE SET fc_repos=excluded.fc_repos',
+      [cleJour(jour), bpm],
+    );
+  }
+
+  /// Minutes de sommeil par jour civil sur les [jours] derniers jours
+  /// (v0.8.0) : seuls les jours avec une nuit connue sont présents.
+  Future<Map<DateTime, int>> historiqueSommeil(int jours) async {
+    final db = await base;
+    final ref = DateTime.now();
+    final depuis = DateTime(ref.year, ref.month, ref.day)
+        .subtract(Duration(days: jours - 1));
+    final lignes = await db
+        .query('sommeil', where: 'jour >= ?', whereArgs: [cleJour(depuis)]);
+    final parJour = <DateTime, int>{};
+    for (final l in lignes) {
+      final minutes = l['minutes'] as int;
+      if (minutes > 0) {
+        parJour[DateTime.parse(l['jour'] as String)] = minutes;
+      }
+    }
+    return parJour;
+  }
+
+  /// FC au repos par jour civil sur les [jours] derniers jours (v0.8.0) :
+  /// seuls les jours avec une mesure connue sont présents.
+  Future<Map<DateTime, int>> historiqueFcRepos(int jours) async {
+    final db = await base;
+    final ref = DateTime.now();
+    final depuis = DateTime(ref.year, ref.month, ref.day)
+        .subtract(Duration(days: jours - 1));
+    final lignes = await db.query('sommeil',
+        where: 'jour >= ? AND fc_repos IS NOT NULL',
+        whereArgs: [cleJour(depuis)]);
+    final parJour = <DateTime, int>{};
+    for (final l in lignes) {
+      parJour[DateTime.parse(l['jour'] as String)] = l['fc_repos'] as int;
     }
     return parJour;
   }

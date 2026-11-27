@@ -247,6 +247,11 @@ class _Contenu extends StatelessWidget {
                   minutesSport:
                       activites.minutesSportJour(journal.jour).round()),
             ),
+          // v0.8.0 : carte sommeil & FC au repos de la nuit dernière,
+          // seulement sur la journée en cours (la nuit est attribuée au
+          // jour du réveil). Sans données santé, la carte disparaît.
+          if (_memeJour(journal.jour, DateTime.now()))
+            _CarteSommeil(activites: activites),
           if (_memeJour(journal.jour, DateTime.now()))
             const SizedBox(height: 8),
           // Bouton d'ajout toujours visible (au-delà du bouton flottant),
@@ -821,6 +826,77 @@ Future<void> _basculerFavori(
 /// Carte hydratation du jour (v0.7.9) : eau bue, objectif extrapolé
 /// depuis le poids connu et le sport du jour, boutons de saisie rapide
 /// (verre 250 mL, gourde 500 mL, correction -250 mL).
+/// Carte sommeil & FC au repos de la nuit dernière (v0.8.0) : la nuit
+/// est attribuée au jour du réveil, donc « nuit dernière » = nuit
+/// finie ce matin. Sans données santé (aucune montre, autorisation
+/// refusée), la carte disparaît de l'accueil.
+class _CarteSommeil extends StatelessWidget {
+  const _CarteSommeil({required this.activites});
+
+  final Activites activites;
+
+  @override
+  Widget build(BuildContext context) {
+    final maintenant = DateTime.now();
+    final aujourdhui =
+        DateTime(maintenant.year, maintenant.month, maintenant.day);
+    final minutes = activites.sommeilJour(aujourdhui);
+    final fc = activites.fcReposJour(aujourdhui);
+    if (minutes == null && fc == null) return const SizedBox.shrink();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const SizedBox(height: 8),
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.bedtime, color: Colors.indigo),
+                    const SizedBox(width: 8),
+                    const Expanded(
+                      child: Text(
+                        'Sommeil',
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 15),
+                        key: Key('sommeilTitre'),
+                      ),
+                    ),
+                    if (minutes != null)
+                      Text(
+                        formatDuree(minutes),
+                        key: const Key('sommeilNuit'),
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                  ],
+                ),
+                if (fc != null) ...[
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      const Icon(Icons.favorite,
+                          size: 16, color: Colors.pink),
+                      const SizedBox(width: 8),
+                      Text(
+                        'FC au repos : $fc bpm',
+                        key: const Key('sommeilFc'),
+                        style: const TextStyle(fontSize: 13),
+                      ),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _CarteHydratation extends StatelessWidget {
   const _CarteHydratation({
     required this.hydratation,

@@ -69,6 +69,32 @@ class PeseeSante {
   const PeseeSante({required this.moment, required this.kg});
 }
 
+/// Une nuit de sommeil relevée dans une source santé (Health Connect),
+/// telle que journalisée par la montre (v0.8.0) : début et fin de la
+/// session de sommeil (la durée s'en déduit).
+class SeanceSommeil {
+  /// Coucher (début de la session de sommeil).
+  final DateTime debut;
+
+  /// Réveil (fin de la session de sommeil).
+  final DateTime fin;
+
+  const SeanceSommeil({required this.debut, required this.fin});
+}
+
+/// Une mesure de fréquence cardiaque relevée dans une source santé
+/// (v0.8.0) — au repos (Health Connect publie en général une valeur
+/// quotidienne) ou ponctuelle.
+class MesureFc {
+  /// Date et heure de la mesure.
+  final DateTime moment;
+
+  /// Fréquence cardiaque, en battements par minute.
+  final int bpm;
+
+  const MesureFc({required this.moment, required this.bpm});
+}
+
 /// Source de données santé : autorisation, séances et compteurs.
 ///
 /// Abstraite pour être simulable dans les tests : seule l'implémentation
@@ -84,6 +110,19 @@ abstract class SourceSante {
   /// Pesées relevées entre [debut] et [fin] (v0.7.5).
   /// Liste vide si rien/erreur.
   Future<List<PeseeSante>> peseesEntre(DateTime debut, DateTime fin);
+
+  /// Nuits de sommeil chevauchant [debut] et [fin] (v0.8.0).
+  /// Liste vide si rien/erreur.
+  Future<List<SeanceSommeil>> sommeilEntre(DateTime debut, DateTime fin);
+
+  /// Mesures de FC au repos relevées entre [debut] et [fin] (v0.8.0).
+  /// Liste vide si rien/erreur.
+  Future<List<MesureFc>> fcReposEntre(DateTime debut, DateTime fin);
+
+  /// FC minimale relevée entre [debut] et [fin] dans les mesures
+  /// ponctuelles (v0.8.0) : repli quand la source ne publie pas de FC
+  /// au repos. null si indisponible.
+  Future<int?> fcMinEntre(DateTime debut, DateTime fin);
 
   /// Compteurs (pas, étages) de la journée [jour]. null si indisponible.
   Future<CompteursJour?> compteursJour(DateTime jour);
@@ -182,6 +221,48 @@ Map<DateTime, double> peseesAImporter(
       .toList());
 }
 
+/// Minutes de sommeil par jour de réveil (v0.8.0) : chaque session est
+/// attribuée au jour civil où elle se termine — la nuit de mardi à
+/// mercredi compte pour mercredi. Plusieurs sessions terminées le
+/// même jour (ex. sieste puis nuit) s'additionnent ; une session
+/// vide ou de plus de 24 h (donnée aberrante) est ignorée.
+Map<DateTime, int> minutesSommeilParJour(List<SeanceSommeil> seances) {
+  final parJour = <DateTime, int>{};
+  for (final seance in seances) {
+    final minutes = seance.fin.difference(seance.debut).inMinutes;
+    if (minutes <= 0 || minutes > 24 * 60) continue;
+    final jour =
+        DateTime(seance.fin.year, seance.fin.month, seance.fin.day);
+    parJour[jour] = (parJour[jour] ?? 0) + minutes;
+  }
+  return parJour;
+}
+
+/// FC au repos par jour civil (v0.8.0) : la dernière mesure de la
+/// journée (Health Connect publie en général une valeur quotidienne).
+/// Les mesures hors bornes évidentes (25 ou 230 bpm) sont ignorées.
+Map<DateTime, int> fcReposParJour(List<MesureFc> mesures) {
+  final parJour = <DateTime, int>{};
+  final dernierMoment = <DateTime, DateTime>{};
+  for (final m in mesures) {
+    if (m.bpm < 30 || m.bpm > 220) continue;
+    final jour = DateTime(m.moment.year, m.moment.month, m.moment.day);
+    final deja = dernierMoment[jour];
+    if (deja == null || m.moment.isAfter(deja)) {
+      dernierMoment[jour] = m.moment;
+      parJour[jour] = m.bpm;
+    }
+  }
+  return parJour;
+}
+
+/// 445 -> « 7 h 25 » (v0.8.0) : durée de sommeil lisible.
+String formatDuree(int minutes) {
+  final h = minutes ~/ 60;
+  final m = minutes % 60;
+  return '$h h ${m.toString().padLeft(2, '0')}';
+}
+
 /// Calories d'une séance importée : celles de la source si elle en fournit,
 /// sinon estimation MET du catalogue Azimiam — sur [poidsKg] quand le poids
 /// est connu (dernière pesée), sinon 70 kg (v0.7.5).
@@ -235,6 +316,12 @@ class SourceSanteHealth implements SourceSante {
     // même présente dans Health Connect.
     HealthDataType.DISTANCE_DELTA,
     HealthDataType.TOTAL_CALORIES_BURNED,
+    // v0.8.0 : sommeil (nuits attribuées au jour du réveil) et
+    // fréquence cardiaque (FC au repos publiée par la source, repli
+    // sur la FC minimale des mesures ponctuelles du jour).
+    HealthDataType.SLEEP_SESSION,
+    HealthDataType.RESTING_HEART_RATE,
+    HealthDataType.HEART_RATE,
   ];
 
   @override
@@ -316,6 +403,75 @@ class SourceSanteHealth implements SourceSante {
       return pesees;
     } catch (_) {
       return const [];
+    }
+  }
+
+  @override
+  Future<List<SeanceSommeil>> sommeilEntre(DateTime debut, DateTime fin) async {
+    try {
+      final points = await _sante.getHealthDataFromTypes(
+        startTime: debut,
+        endTime: fin,
+        types: const [HealthDataType.SLEEP_SESSION],
+      );
+      final seances = <SeanceSommeil>[];
+      for (final point in points) {
+        // Le plugin renvoie une session de sommeil sous forme
+        // d'intervalle (valeur = minutes de l'intervalle) : la durée
+        // se déduit du début et de la fin, plus fiables.
+        if (point.dateTo.isAfter(point.dateFrom)) {
+          seances.add(
+              SeanceSommeil(debut: point.dateFrom, fin: point.dateTo));
+        }
+      }
+      return seances;
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  @override
+  Future<List<MesureFc>> fcReposEntre(DateTime debut, DateTime fin) async {
+    try {
+      final points = await _sante.getHealthDataFromTypes(
+        startTime: debut,
+        endTime: fin,
+        types: const [HealthDataType.RESTING_HEART_RATE],
+      );
+      final mesures = <MesureFc>[];
+      for (final point in points) {
+        final valeur = point.value;
+        if (valeur is! NumericHealthValue) continue;
+        final bpm = valeur.numericValue.round();
+        // Garde-fou : une FC hors limites évidentes est ignorée.
+        if (bpm < 30 || bpm > 220) continue;
+        mesures.add(MesureFc(moment: point.dateFrom, bpm: bpm));
+      }
+      return mesures;
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  @override
+  Future<int?> fcMinEntre(DateTime debut, DateTime fin) async {
+    try {
+      final points = await _sante.getHealthDataFromTypes(
+        startTime: debut,
+        endTime: fin,
+        types: const [HealthDataType.HEART_RATE],
+      );
+      int? mini;
+      for (final point in points) {
+        final valeur = point.value;
+        if (valeur is! NumericHealthValue) continue;
+        final bpm = valeur.numericValue.round();
+        if (bpm < 30 || bpm > 220) continue;
+        if (mini == null || bpm < mini) mini = bpm;
+      }
+      return mini;
+    } catch (_) {
+      return null;
     }
   }
 
