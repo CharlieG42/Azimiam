@@ -72,53 +72,53 @@ class ProgressionEcran extends StatelessWidget {
                 ],
               ),
             ),
-      floatingActionButton: FloatingActionButton.extended(
-        icon: const Icon(Icons.monitor_weight_outlined),
-        label: const Text('Pesée du jour'),
-        onPressed: () => _saisirPesee(context, progression),
-      ),
+      // v0.8.1 : la pesée du jour se déclare désormais depuis la puce
+      // « Pesée du jour » de l'accueil — le bouton flottant gênait la
+      // lecture du suivi (il masquait la dernière ligne).
     );
   }
+}
 
-  Future<void> _saisirPesee(
-      BuildContext context, Progression progression) async {
-    final controleur = TextEditingController(
-      text: progression.dernier?.kg.toStringAsFixed(1) ?? '',
-    );
-    final kg = await showDialog<double>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Pesée du jour'),
-        content: TextField(
-          controller: controleur,
-          autofocus: true,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: const InputDecoration(
-            labelText: 'Poids (kg)',
-            suffixText: 'kg',
-          ),
-          onSubmitted: (v) => Navigator.pop(
-              context, double.tryParse(v.replaceAll(',', '.'))),
+/// Ouvre la boîte de dialogue de pesée du jour. Fonction publique
+/// (v0.8.1) : la puce « Pesée du jour » de l'accueil l'appelle aussi,
+/// le bouton flottant de l'écran Progression ayant été retiré.
+Future<void> saisirPesee(BuildContext context, Progression progression) async {
+  final controleur = TextEditingController(
+    text: progression.dernier?.kg.toStringAsFixed(1) ?? '',
+  );
+  final kg = await showDialog<double>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('Pesée du jour'),
+      content: TextField(
+        controller: controleur,
+        autofocus: true,
+        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        decoration: const InputDecoration(
+          labelText: 'Poids (kg)',
+          suffixText: 'kg',
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Annuler'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(
-              context,
-              double.tryParse(controleur.text.replaceAll(',', '.')),
-            ),
-            child: const Text('Enregistrer'),
-          ),
-        ],
+        onSubmitted: (v) => Navigator.pop(
+            context, double.tryParse(v.replaceAll(',', '.'))),
       ),
-    );
-    controleur.dispose();
-    if (kg != null && kg > 0) {
-      await progression.ajouterPesee(kg, DateTime.now());
-    }
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Annuler'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(
+            context,
+            double.tryParse(controleur.text.replaceAll(',', '.')),
+          ),
+          child: const Text('Enregistrer'),
+        ),
+      ],
+    ),
+  );
+  controleur.dispose();
+  if (kg != null && kg > 0) {
+    await progression.ajouterPesee(kg, DateTime.now());
   }
 }
 
