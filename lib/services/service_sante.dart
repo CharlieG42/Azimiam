@@ -95,6 +95,25 @@ class MesureFc {
   const MesureFc({required this.moment, required this.bpm});
 }
 
+/// Détail d'effort relevé dans une source santé sur une fenêtre
+/// donnée (v0.8.1) : pas et fréquence cardiaque pendant l'effort,
+/// pour l'écran de détail d'une séance.
+class EffortSante {
+  /// Pas relevés pendant la fenêtre (null si indisponible).
+  final int? pas;
+
+  /// FC minimale relevée pendant la fenêtre (bpm, null si aucune).
+  final int? fcMin;
+
+  /// FC moyenne de la fenêtre (bpm, null si aucune mesure).
+  final int? fcMoy;
+
+  /// FC maximale relevée pendant la fenêtre (bpm, null si aucune).
+  final int? fcMax;
+
+  const EffortSante({this.pas, this.fcMin, this.fcMoy, this.fcMax});
+}
+
 /// Source de données santé : autorisation, séances et compteurs.
 ///
 /// Abstraite pour être simulable dans les tests : seule l'implémentation
@@ -123,6 +142,11 @@ abstract class SourceSante {
   /// ponctuelles (v0.8.0) : repli quand la source ne publie pas de FC
   /// au repos. null si indisponible.
   Future<int?> fcMinEntre(DateTime debut, DateTime fin);
+
+  /// Détail d'effort (pas, FC min/moy/max) relevé entre [debut] et
+  /// [fin] (v0.8.1), pour l'écran de détail d'une séance. null si
+  /// indisponible.
+  Future<EffortSante?> effortEntre(DateTime debut, DateTime fin);
 
   /// Compteurs (pas, étages) de la journée [jour]. null si indisponible.
   Future<CompteursJour?> compteursJour(DateTime jour);
@@ -473,6 +497,50 @@ class SourceSanteHealth implements SourceSante {
     } catch (_) {
       return null;
     }
+  }
+
+  @override
+  Future<EffortSante?> effortEntre(DateTime debut, DateTime fin) async {
+    if (!fin.isAfter(debut)) return null;
+    // Pas de la fenêtre (le plugin fournit un total d'intervalle).
+    int? pas;
+    try {
+      pas = await _sante.getTotalStepsInInterval(debut, fin);
+    } catch (_) {
+      pas = null;
+    }
+    // FC min / moyenne / max des mesures ponctuelles de la fenêtre.
+    int? fcMin;
+    int? fcMax;
+    double somme = 0;
+    int nb = 0;
+    try {
+      final points = await _sante.getHealthDataFromTypes(
+        startTime: debut,
+        endTime: fin,
+        types: const [HealthDataType.HEART_RATE],
+      );
+      for (final point in points) {
+        final valeur = point.value;
+        if (valeur is! NumericHealthValue) continue;
+        final bpm = valeur.numericValue.round();
+        // Garde-fou : une FC hors limites évidentes est ignorée.
+        if (bpm < 30 || bpm > 220) continue;
+        if (fcMin == null || bpm < fcMin) fcMin = bpm;
+        if (fcMax == null || bpm > fcMax) fcMax = bpm;
+        somme += bpm;
+        nb++;
+      }
+    } catch (_) {
+      // Pas de FC disponible sur la fenêtre : on garde les pas.
+    }
+    if (pas == null && nb == 0) return null;
+    return EffortSante(
+      pas: pas,
+      fcMin: fcMin,
+      fcMoy: nb > 0 ? (somme / nb).round() : null,
+      fcMax: fcMax,
+    );
   }
 
   @override

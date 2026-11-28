@@ -226,6 +226,36 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.textContaining('Import impossible'), findsOneWidget);
   });
+
+  testWidgets('le détail d\'une séance s\'ouvre au clic avec pas et FC (v0.8.1)',
+      (tester) async {
+    // Le détail enrichi se lit à la demande dans Health Connect sur la
+    // fenêtre de la séance : pas + FC min/moy/max pendant l'effort.
+    final hier = DateTime.now().subtract(const Duration(hours: 3));
+    final activites = Activites(sourceSante: _SourceDetail())
+      ..liste = [seance(hier, 'marche', 45, 5.2, null, 234)];
+
+    await tester.pumpWidget(hote(activites));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Marche'));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('detailSeanceTitre')), findsOneWidget);
+    // « 234 kcal » apparaît aussi dans le résumé et sur la carte :
+    // on ne vise que la feuille de détail.
+    expect(
+        find.descendant(
+            of: find.byType(BottomSheet),
+            matching: find.text('234 kcal')),
+        findsOneWidget);
+    expect(find.byKey(const Key('detailSeancePas')), findsOneWidget);
+    expect(find.text('8 432 pas'), findsOneWidget);
+    expect(find.byKey(const Key('detailSeanceFc')), findsOneWidget);
+    expect(find.textContaining('min 98'), findsOneWidget);
+    expect(find.textContaining('moy 128'), findsOneWidget);
+    expect(find.textContaining('max 152'), findsOneWidget);
+  });
 }
 
 /// Fausse source santé qui refuse l'autorisation Health Connect :
@@ -254,6 +284,43 @@ class _SourceSanteRefus implements SourceSante {
 
   @override
   Future<int?> fcMinEntre(DateTime debut, DateTime fin) async => null;
+
+  @override
+  Future<EffortSante?> effortEntre(DateTime debut, DateTime fin) async => null;
+
+  @override
+  Future<CompteursJour?> compteursJour(DateTime jour) async => null;
+}
+
+/// Fausse source santé qui fournit un détail d'effort complet
+/// (v0.8.1) : permet de vérifier la feuille de détail d'une séance
+/// sans toucher à Health Connect.
+class _SourceDetail implements SourceSante {
+  @override
+  Future<bool> demanderAutorisation() async => true;
+
+  @override
+  Future<List<SeanceSante>> seancesEntre(DateTime debut, DateTime fin) =>
+      Future.value(const []);
+
+  @override
+  Future<List<PeseeSante>> peseesEntre(DateTime debut, DateTime fin) =>
+      Future.value(const []);
+
+  @override
+  Future<List<SeanceSommeil>> sommeilEntre(DateTime debut, DateTime fin) =>
+      Future.value(const []);
+
+  @override
+  Future<List<MesureFc>> fcReposEntre(DateTime debut, DateTime fin) =>
+      Future.value(const []);
+
+  @override
+  Future<int?> fcMinEntre(DateTime debut, DateTime fin) async => null;
+
+  @override
+  Future<EffortSante?> effortEntre(DateTime debut, DateTime fin) async =>
+      const EffortSante(pas: 8432, fcMin: 98, fcMoy: 128, fcMax: 152);
 
   @override
   Future<CompteursJour?> compteursJour(DateTime jour) async => null;

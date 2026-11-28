@@ -4,6 +4,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:azimiam/main.dart';
+import 'package:azimiam/screens/ajout_repas_ecran.dart';
 import 'package:azimiam/screens/plan_ecran.dart';
 import 'package:azimiam/screens/progression_ecran.dart';
 
@@ -57,10 +58,23 @@ void main() {
     final ancien = ErrorWidget.builder;
     addTearDown(() => ErrorWidget.builder = ancien);
 
+    // v0.8.1 : le bouton flottant d'ajout a été retiré (doublon avec le
+    // bouton du corps de l'accueil). Mais le corps de l'accueil reste
+    // un spinner tant que SQLite n'a pas répondu — et les plugins
+    // natifs ne répondent jamais en test (voir plus haut) — donc le
+    // bouton du corps n'est jamais construit ici. On pousse l'écran
+    // d'ajout directement dans le navigateur de la vraie app : la
+    // régression visée (MaterialLocalizations null → crash du
+    // TextField) est identique.
+    tester.view.physicalSize = const Size(800, 1400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
     await tester.pumpWidget(const AzimiamApp());
     await pomper(tester);
 
-    await tester.tap(find.text('Ajouter un repas'));
+    final nav = tester.state<NavigatorState>(find.byType(Navigator).first);
+    nav.push(MaterialPageRoute(builder: (_) => const AjoutRepasEcran()));
     await pomper(tester);
 
     // Avant le correctif, ce TextField levait « Null check operator used

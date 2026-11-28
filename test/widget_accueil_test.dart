@@ -78,14 +78,35 @@ void main() {
     expect(find.byKey(const Key('champSaisieAliment')), findsOneWidget);
   });
 
-  testWidgets('le bouton flottant ouvre l\u2019\u00e9cran d\u2019ajout de repas',
+  testWidgets('plus de bouton flottant : le bouton du corps ouvre l’ajout (v0.8.1)',
       (tester) async {
+    // v0.8.1 : le bouton flottant d'ajout a été retiré (doublon avec
+    // le bouton du corps de l'écran).
     await tester.pumpWidget(pompe());
     await tester.pumpAndSettle();
 
+    expect(find.byType(FloatingActionButton), findsNothing);
     await tester.tap(find.text('Ajouter un repas').first);
     await tester.pumpAndSettle();
     expect(find.byType(AjoutRepasEcran), findsOneWidget);
+    expect(find.byKey(const Key('champSaisieAliment')), findsOneWidget);
+  });
+
+  testWidgets('la puce Pesée du jour de l’accueil ouvre la pesée (v0.8.1)',
+      (tester) async {
+    // v0.8.1 : la pesée se déclare depuis une puce des raccourcis du
+    // centre de l'accueil — le viewport doit couvrir cette zone.
+    tester.view.physicalSize = const Size(800, 1400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(pompe());
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('pucePeseeJour')));
+    await tester.pumpAndSettle();
+    expect(find.byType(AlertDialog), findsOneWidget);
+    expect(find.text('Poids (kg)'), findsOneWidget);
+    expect(find.text('Enregistrer'), findsOneWidget);
   });
 
   testWidgets(

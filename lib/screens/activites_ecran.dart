@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../models/activite.dart';
 import '../services/service_activites.dart';
+import '../services/service_sante.dart';
 import '../state/activites.dart';
 import '../state/progression.dart';
 import '../widgets/dialogue_confirmation.dart';
@@ -236,6 +237,9 @@ class _CarteActivite extends StatelessWidget {
         child: Card(
           elevation: 2,
           child: ListTile(
+            // v0.8.1 : le détail enrichi de la séance s'ouvre au clic.
+            onTap: () => detailActiviteSheet(
+                context, activite, context.read<Activites>().source),
             leading: Icon(
               type?.icone ?? Icons.more_horiz,
               size: 32,
@@ -285,6 +289,132 @@ class _CarteActivite extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Ouvre la feuille de détail d'une séance (v0.8.1) : type, date,
+/// durée, distance, dénivelé, calories, origine — et à la demande les
+/// pas et la fréquence cardiaque relevés pendant l'effort (fenêtre de
+/// la séance, lus dans Health Connect). Les traces GPS ne sont pas
+/// disponibles (le plugin santé ne lit pas ExerciseRoute et Garmin ne
+/// partage pas les traces) : ce détail est la compensation retenue.
+Future<void> detailActiviteSheet(BuildContext context,
+    ActiviteSport activite, SourceSante? source) async {
+  final type = ServiceActivites.typeParCle(activite.type);
+  final fin =
+      activite.moment.add(Duration(minutes: activite.dureeMin.round()));
+  final details = <String>[
+    _fmtDuree(activite.dureeMin),
+    if (activite.distanceKm != null)
+      '${activite.distanceKm!.toStringAsFixed(1)} km',
+    if (activite.deniveleM != null)
+      'D+ ${activite.deniveleM!.round()} m',
+  ];
+  final origine = (activite.source ?? '').contains('garmin')
+      ? 'Importée depuis la montre Garmin'
+      : activite.importee
+          ? 'Importée depuis Health Connect'
+          : 'Déclarée à la main';
+  await showModalBottomSheet<void>(
+    context: context,
+    builder: (context) => SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  type?.icone ?? Icons.more_horiz,
+                  size: 32,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    type?.libelle ?? activite.type,
+                    key: const Key('detailSeanceTitre'),
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 17),
+                  ),
+                ),
+                Text(
+                  '${activite.kcal.round()} kcal',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '${DateFormat('EEEE d MMMM yyyy', 'fr_FR').format(activite.moment)}'
+              ' · ${DateFormat('HH:mm', 'fr_FR').format(activite.moment)}'
+              ' · ${details.join(' · ')}'
+              ' · $origine',
+              style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+            ),
+            const SizedBox(height: 12),
+            FutureBuilder<EffortSante?>(
+              future: source == null
+                  ? Future.value(null)
+                  : source.effortEntre(activite.moment, fin),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState != ConnectionState.done) {
+                  return const SizedBox(
+                    height: 24,
+                    width: 24,
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2, key: Key('detailSeanceChargement')),
+                  );
+                }
+                final effort = snapshot.data;
+                if (effort == null) {
+                  return const SizedBox.shrink();
+                }
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (effort.pas != null)
+                      Row(
+                        children: [
+                          const Icon(Icons.directions_walk,
+                              size: 18, color: Colors.blueGrey),
+                          const SizedBox(width: 8),
+                          Text(
+                            '${formatEntier(effort.pas!)} pas',
+                            key: const Key('detailSeancePas'),
+                          ),
+                        ],
+                      ),
+                    if (effort.fcMin != null) ...[
+                      const SizedBox(height: 4),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Icon(Icons.favorite,
+                              size: 18, color: Colors.pink),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'FC pendant l\'effort : '
+                              'min ${effort.fcMin} · '
+                              'moy ${effort.fcMoy} · '
+                              'max ${effort.fcMax} bpm',
+                              key: const Key('detailSeanceFc'),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ],
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
 }
 
 /// Ouvre la boîte de dialogue de déclaration d'une activité :

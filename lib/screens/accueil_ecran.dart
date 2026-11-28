@@ -183,18 +183,9 @@ class AccueilEcran extends StatelessWidget {
       body: journal.enChargement
           ? const Center(child: CircularProgressIndicator())
           : _Contenu(journal: journal),
-      floatingActionButton: FloatingActionButton.extended(
-        icon: const Icon(Icons.restaurant_menu),
-        label: const Text('Ajouter un repas'),
-        onPressed: () => Navigator.push(
-          context,
-          // Le repas est daté de la journée AFFICHÉE (hier inclus), pas de
-          // « maintenant » : sinon le dîner d'hier se retrouvait daté du
-          // jour où on le saisit.
-          MaterialPageRoute(
-              builder: (_) => AjoutRepasEcran(jour: journal.jour)),
-        ),
-      ),
+      // v0.8.1 : plus de bouton flottant — le bouton « Ajouter un repas »
+      // du corps de l'écran suffit (demande de Charlie : il faisait
+      // doublon avec celui de l'écran).
     );
   }
 }
@@ -262,7 +253,8 @@ class _Contenu extends StatelessWidget {
             label: const Text('Ajouter un repas'),
             onPressed: () => Navigator.push(
               context,
-              // Idem bouton flottant : la journée affichée est transmise.
+              // La journée affichée est transmise (hier inclus), pour
+              // que le repas soit daté du jour qu'on regarde.
               MaterialPageRoute(
                   builder: (_) => AjoutRepasEcran(jour: journal.jour)),
             ),
@@ -295,6 +287,14 @@ class _Contenu extends StatelessWidget {
                   context,
                   MaterialPageRoute(builder: (_) => const PlanEcran()),
                 ),
+              ),
+              // v0.8.1 : la pesée du jour se déclare désormais depuis
+              // l'accueil (elle gênait la lecture dans Progression).
+              ActionChip(
+                key: const Key('pucePeseeJour'),
+                avatar: const Icon(Icons.monitor_weight_outlined, size: 18),
+                label: const Text('Pesée du jour'),
+                onPressed: () => saisirPesee(context, progression),
               ),
             ],
           ),
