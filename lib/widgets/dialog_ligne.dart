@@ -4,7 +4,6 @@ import 'package:provider/provider.dart';
 import '../models/repas.dart';
 import '../models/valeurs.dart';
 import '../state/catalogue.dart';
-import 'dialog_nouvel_aliment.dart';
 
 String _fmt(double d) =>
     d == d.roundToDouble() ? d.round().toString() : d.toStringAsFixed(1);
@@ -15,90 +14,179 @@ String _fmt(double d) =>
 ///
 /// Partagée entre l'écran d'ajout et l'écran de modification d'un repas :
 /// une seule implémentation pour garantir le même comportement.
+///
+/// v0.8.2 : une ligne saisie librement (hors base) dont on renseigne les
+/// calories entre automatiquement au catalogue comme aliment personnel —
+/// les prochaines recherches et analyses IA la reconnaîtront.
 Future<bool> editerLigneDialog(BuildContext context, LigneRepas ligne) async {
-  final nomCtl = TextEditingController(text: ligne.nom);
-  final grammesCtl = TextEditingController(text: _fmt(ligne.grammes));
-  final kcalCtl = TextEditingController(text: _fmt(ligne.pour100.kcal));
-  final protCtl = TextEditingController(text: _fmt(ligne.pour100.proteines));
-  final glucCtl = TextEditingController(text: _fmt(ligne.pour100.glucides));
-  final lipCtl = TextEditingController(text: _fmt(ligne.pour100.lipides));
+  return await showDialog<bool>(
+        context: context,
+        builder: (_) => _DialogEditionLigne(ligne: ligne),
+      ) ??
+      false;
+}
 
-  final valide = await showDialog<bool>(
-    context: context,
-    builder: (context) => AlertDialog(
+/// Fiche d'édition : [StatefulWidget] car les contrôleurs de champs
+/// appartiennent à la fiche, qui survit à sa fermeture le temps de
+/// l'animation de sortie (les relâcher depuis la fonction appelante
+/// cassait les reconstructions en cours de route).
+class _DialogEditionLigne extends StatefulWidget {
+  final LigneRepas ligne;
+
+  const _DialogEditionLigne({required this.ligne});
+
+  @override
+  State<_DialogEditionLigne> createState() => _DialogEditionLigneState();
+}
+
+class _DialogEditionLigneState extends State<_DialogEditionLigne> {
+  late final TextEditingController _nomCtl;
+  late final TextEditingController _grammesCtl;
+  late final TextEditingController _kcalCtl;
+  late final TextEditingController _protCtl;
+  late final TextEditingController _glucCtl;
+  late final TextEditingController _lipCtl;
+
+  /// Catalogue capturé à l'ouverture, en lecture nullable : un hôte sans
+  /// provider Catalogue ignore simplement l'ajout automatique (v0.8.2).
+  late final Catalogue? _catalogue;
+
+  /// Messager capturé à l'ouverture : la confirmation d'ajout au
+  /// catalogue s'affiche après la fermeture de la fiche.
+  late final ScaffoldMessengerState _messenger;
+
+  /// État « hors base » avant édition : seule une ligne saisie librement
+  /// entre au catalogue à la validation (v0.8.2).
+  late final bool _reconnuAvant;
+
+  /// Captures faites une seule fois dans [didChangeDependencies] :
+  /// `ScaffoldMessenger.of` enregistre une dépendance, interdite
+  /// dans initState.
+  bool _capturesFaites = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final ligne = widget.ligne;
+    _nomCtl = TextEditingController(text: ligne.nom);
+    _grammesCtl = TextEditingController(text: _fmt(ligne.grammes));
+    _kcalCtl = TextEditingController(text: _fmt(ligne.pour100.kcal));
+    _protCtl = TextEditingController(text: _fmt(ligne.pour100.proteines));
+    _glucCtl = TextEditingController(text: _fmt(ligne.pour100.glucides));
+    _lipCtl = TextEditingController(text: _fmt(ligne.pour100.lipides));
+    _reconnuAvant = ligne.reconnu;
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_capturesFaites) return;
+    _capturesFaites = true;
+    _catalogue = context.read<Catalogue?>();
+    _messenger = ScaffoldMessenger.of(context);
+  }
+
+  @override
+  void dispose() {
+    _nomCtl.dispose();
+    _grammesCtl.dispose();
+    _kcalCtl.dispose();
+    _protCtl.dispose();
+    _glucCtl.dispose();
+    _lipCtl.dispose();
+    super.dispose();
+  }
+
+  /// Applique les valeurs saisies à la ligne, referme la fiche, puis
+  /// entre la ligne hors base au catalogue (v0.8.2).
+  Future<void> _valider() async {
+    final ligne = widget.ligne;
+    ligne.nom =
+        _nomCtl.text.trim().isEmpty ? ligne.nom : _nomCtl.text.trim();
+    ligne.grammes =
+        double.tryParse(_grammesCtl.text.replaceAll(',', '.')) ??
+            ligne.grammes;
+    ligne.pour100 = ValeursNutritionnelles(
+      kcal: double.tryParse(_kcalCtl.text.replaceAll(',', '.')) ??
+          ligne.pour100.kcal,
+      proteines: double.tryParse(_protCtl.text.replaceAll(',', '.')) ??
+          ligne.pour100.proteines,
+      glucides: double.tryParse(_glucCtl.text.replaceAll(',', '.')) ??
+          ligne.pour100.glucides,
+      lipides: double.tryParse(_lipCtl.text.replaceAll(',', '.')) ??
+          ligne.pour100.lipides,
+    );
+    ligne.reconnu = true;
+    final aCataloguer =
+        !_reconnuAvant && ligne.pour100.kcal > 0 && _catalogue != null;
+    Navigator.of(context).pop(true);
+
+    // v0.8.2 : la ligne hors base qui vient d'être renseignée entre au
+    // catalogue comme aliment personnel. Un doublon (déjà présent) ne
+    // fait rien : l'important est que l'aliment y soit, pas de quand.
+    if (aCataloguer) {
+      try {
+        final erreur = await _catalogue.ajouter(
+            nom: ligne.nom, alias: const [], valeurs: ligne.pour100);
+        if (erreur == null) {
+          _messenger.showSnackBar(SnackBar(
+              content: Text('« ${ligne.nom} » ajouté au catalogue')));
+        }
+      } catch (_) {
+        // Base indisponible : la ligne garde ses valeurs saisies,
+        // l'édition n'échoue jamais pour l'ajout au catalogue.
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ligne = widget.ligne;
+    return AlertDialog(
       title: const Text('Modifier la ligne'),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
-              controller: nomCtl,
+              controller: _nomCtl,
               decoration: const InputDecoration(labelText: 'Aliment'),
             ),
             TextField(
-              controller: grammesCtl,
+              controller: _grammesCtl,
               keyboardType: TextInputType.number,
               decoration: const InputDecoration(labelText: 'Quantité (g)'),
             ),
             TextField(
-              controller: kcalCtl,
+              controller: _kcalCtl,
               keyboardType: TextInputType.number,
               decoration:
                   const InputDecoration(labelText: 'Calories / 100 g'),
             ),
             TextField(
-              controller: protCtl,
+              controller: _protCtl,
               keyboardType: TextInputType.number,
               decoration:
                   const InputDecoration(labelText: 'Protéines / 100 g'),
             ),
             TextField(
-              controller: glucCtl,
+              controller: _glucCtl,
               keyboardType: TextInputType.number,
               decoration:
                   const InputDecoration(labelText: 'Glucides / 100 g'),
             ),
             TextField(
-              controller: lipCtl,
+              controller: _lipCtl,
               keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: 'Lipides / 100 g'),
+              decoration:
+                  const InputDecoration(labelText: 'Lipides / 100 g'),
             ),
             if (!ligne.reconnu) ...[
               const SizedBox(height: 12),
-              OutlinedButton.icon(
-                key: const Key('boutonCreerCatalogue'),
-                icon: const Icon(Icons.add_circle_outline),
-                label: const Text('Créer cet aliment dans le catalogue'),
-                onPressed: () async {
-                  // Fiche de création pré-remplie avec le nom de la ligne :
-                  // une fois créé, l'aliment alimentera aussi le
-                  // rapprochement IA des prochaines analyses.
-                  final cree = await showDialog<AlimentCree>(
-                    context: context,
-                    builder: (context) => DialogNouvelAliment(
-                      nomInitial: nomCtl.text.trim().isNotEmpty
-                          ? nomCtl.text.trim()
-                          : ligne.nom,
-                      onValide: (nom, alias, valeurs) => context
-                          .read<Catalogue>()
-                          .ajouter(nom: nom, alias: alias, valeurs: valeurs),
-                    ),
-                  );
-                  if (cree != null) {
-                    // Reprise des valeurs dans la fiche de la ligne :
-                    // l'utilisateur garde la main (Valider pour appliquer).
-                    nomCtl.text = cree.nom;
-                    kcalCtl.text = _fmt(cree.valeurs.kcal);
-                    protCtl.text = _fmt(cree.valeurs.proteines);
-                    glucCtl.text = _fmt(cree.valeurs.glucides);
-                    lipCtl.text = _fmt(cree.valeurs.lipides);
-                  }
-                },
-              ),
-              const SizedBox(height: 4),
               const Text(
-                'Aliment hors base : créez-le une fois, toutes les '
-                'prochaines analyses le reconnaîtront.',
+                'Aliment hors base : en validant avec des calories, il '
+                'sera ajouté automatiquement à votre catalogue (et reconnu '
+                'par les prochaines analyses IA).',
                 style: TextStyle(fontSize: 12, color: Colors.grey),
               ),
             ],
@@ -111,34 +199,10 @@ Future<bool> editerLigneDialog(BuildContext context, LigneRepas ligne) async {
           child: const Text('Annuler'),
         ),
         FilledButton(
-          onPressed: () => Navigator.pop(context, true),
+          onPressed: _valider,
           child: const Text('Valider'),
         ),
       ],
-    ),
-  );
-
-  if (valide == true) {
-    ligne.nom = nomCtl.text.trim().isEmpty ? ligne.nom : nomCtl.text.trim();
-    ligne.grammes = double.tryParse(grammesCtl.text.replaceAll(',', '.')) ??
-        ligne.grammes;
-    ligne.pour100 = ValeursNutritionnelles(
-      kcal: double.tryParse(kcalCtl.text.replaceAll(',', '.')) ??
-          ligne.pour100.kcal,
-      proteines: double.tryParse(protCtl.text.replaceAll(',', '.')) ??
-          ligne.pour100.proteines,
-      glucides: double.tryParse(glucCtl.text.replaceAll(',', '.')) ??
-          ligne.pour100.glucides,
-      lipides: double.tryParse(lipCtl.text.replaceAll(',', '.')) ??
-          ligne.pour100.lipides,
     );
-    ligne.reconnu = true;
   }
-  nomCtl.dispose();
-  grammesCtl.dispose();
-  kcalCtl.dispose();
-  protCtl.dispose();
-  glucCtl.dispose();
-  lipCtl.dispose();
-  return valide == true;
 }
